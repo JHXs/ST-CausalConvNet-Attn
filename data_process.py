@@ -24,7 +24,7 @@ def main():
     for station_id_other in station_id_list:
         df_one_station_other = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(station_id_other))
         v_list_2 = list(df_one_station_other['PM25_Concentration'])
-        r, p = stats.pearsonr(v_list_1, v_list_2)
+        r, p = stats.pearsonr(v_list_1, v_list_2)  ## 计算与中心站点皮尔逊系数
         if r > r_thred:
             station_id_related_list.append(station_id_other)
         print('{}  {}  {:.3f}'.format(center_station_id, station_id_other, r))
