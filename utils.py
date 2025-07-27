@@ -65,3 +65,34 @@ def get_param_number(net):
     total_num = sum(p.numel() for p in net.parameters())
     trainable_num = sum(p.numel() for p in net.parameters() if p.requires_grad)
     return total_num, trainable_num
+
+def replicate_to_hourly(df):
+    """
+    将每日空气质量数据均匀复制为每小时数据，每天的值在该天的每个小时保持一致。
+    
+    参数:
+    df (pd.DataFrame): 包含每日空气质量数据的 DataFrame，需包括列 
+                       'time', 'AQI', 'SO2', 'PM2.5', 'PM10', 'NO2', 'CO', 'O3_8h'。
+                       'time' 列应包含可由 pd.to_datetime 解析的日期字符串。
+    
+    返回:
+    pd.DataFrame: 新的 DataFrame，包含每小时数据，每天的每个小时具有该天的相同值。
+    """
+    # Make a copy to avoid modifying the original DataFrame
+    df = df.copy()    
+    if 'time' not in df.columns:
+        raise ValueError("The DataFrame must contain a 'time' column.")      
+    if not pd.api.types.is_datetime64_any_dtype(df['time']):
+        df['time'] = pd.to_datetime(df['time'])    
+    df.set_index('time', inplace=True) # Set 'time' as the index
+    df.sort_index(inplace=True)  
+    start_date = df.index.min()
+    end_date = df.index.max()
+    hours = pd.date_range(start=start_date, end=end_date + pd.Timedelta(days=1), freq='h') # Create hourly time index from start to end + 1 day  
+    hourly_index = hours[hours.normalize().isin(df.index)]   # 找出 df 里确实存在的那些小时
+    dates = hourly_index.normalize()  # 获取每小时对应的日期
+    # dates = [d for d in dates if d in df.index]
+    hourly_df = df.loc[dates, :].copy()  # 将每日数据复制到每小时
+    hourly_df.index = hourly_index
+    
+    return hourly_df
