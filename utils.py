@@ -93,6 +93,8 @@ def replicate_to_hourly(df):
     dates = hourly_index.normalize()  # 获取每小时对应的日期
     # dates = [d for d in dates if d in df.index]
     hourly_df = df.loc[dates, :].copy()  # 将每日数据复制到每小时
+    hourly_index.name = 'time'
     hourly_df.index = hourly_index
+    # hourly_df = hourly_df.reset_index().rename(columns={'index': 'time'})
     
     return hourly_df

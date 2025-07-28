@@ -16,6 +16,21 @@ def main():
     print(hourly_df.head(24))
     hourly_df.to_csv(f'./data/hezhou_air_data/aqi.csv', index=True)
 
+    # 空气质量与气象数据聚合
+    df_weather = pd.read_csv('./data/hezhou_air_data/20200101-20250415逐小时气象要素.csv')
+    df_weather['time'] = pd.to_datetime(df_weather['time'], format='%Y%m%d%H')
+    df_weather.drop_duplicates(subset=['time'], inplace=True)  # 去重
+    df_weather.set_index('time', inplace=True)
+    df_weather.sort_index(inplace=True)   # 推荐写法
+    print(df_weather.head(24))
+    # print(hourly_df.index.is_unique)  # 检查索引是否有重复值，应该返回 True
+    # print(df_weather.index.is_unique)  # 应该返回 True
+    # duplicates = df_weather[df_weather.index.duplicated(keep=False)]  # 查看重复的索引值
+    # print(duplicates.sort_index())
+    df_merg = pd.concat([hourly_df, df_weather], axis=1, join='inner')    
+    print(df_merg.head(24))
+    df_merg.to_csv('./data/hezhou_air_data/aqi_meteo_merged.csv', index=True)
+
     # generate x and y
     # x_shape: [example_count, num_releated, seq_step, feat_size]
     # y_shape: [example_count,]
