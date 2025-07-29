@@ -14,7 +14,7 @@ def main():
     df_airq = pd.read_csv('./data/hezhou_air_data/20200101-20250415最大值实况-十四五城市日均值.csv')
     hourly_df = utils.replicate_to_hourly(df_airq)
     print(hourly_df.head(24))
-    hourly_df.to_csv(f'./data/hezhou_air_data/aqi.csv', index=True)
+    # hourly_df.to_csv(f'./data/hezhou_air_data/aqi.csv', index=True)
 
     # 空气质量与气象数据聚合
     df_weather = pd.read_csv('./data/hezhou_air_data/20200101-20250415逐小时气象要素.csv')
@@ -31,44 +31,99 @@ def main():
     print(df_merg.head(24))
     df_merg.to_csv('./data/hezhou_air_data/aqi_meteo_merged.csv', index=True)
 
+    # 处理异常、缺失值
+    print("数据预览：")
+    print(df_merg.head())
+    # 查看数据统计概要
+    print("\n数据概要：")
+    print(df_merg.describe().T)
+    # df_merg.describe().T
+
+    # 风向：把 >360 或 <0 的设为 NaN
+    df_merg.loc[df_merg['风向'] > 360, '风向'] = pd.NA
+    df_merg.loc[df_merg['风向'] < 0,   '风向'] = pd.NA
+
+    # 气压：把 0 设为 NaN
+    df_merg.loc[df_merg['气压'] == 0, '气压'] = pd.NA
+
+    # 方法 A：用前后有效风向的线性角度插值
+    df_merg['风向'] = df_merg['风向'].interpolate(method='linear')
+    # 只有一条缺失，最稳妥的是线性插值：
+    df_merg['气压'] = df_merg['气压'].interpolate(method='time')
+    print(df_merg.isna().sum().sum())   # 期望输出 0
+
+    print("\n处理后的数据概要：")
+    print(df_merg.describe().T)
+    # df_merg.to_csv('./data/hezhou_air_data/processed_data.csv')
+
     # generate x and y
     # x_shape: [example_count, num_releated, seq_step, feat_size]
     # y_shape: [example_count,]
-    print('Center station: {}\nRelated stations: {}'.format(center_station_id, station_id_related_list))
-    feat_names = ['PM25_Concentration', 'PM10_Concentration', 'NO2_Concentration', 'CO_Concentration', 'O3_Concentration', 'SO2_Concentration',
-                  'weather', 'temperature', 'pressure', 'humidity', 'wind_speed', 'wind_direction']
-    x_length = 24
-    y_length = 1
-    y_step = 1
+
+    # 使用processed_data.csv文件直接处理单站点数据
+    # df_processed = pd.read_csv('./data/hezhou_air_data/processed_data.csv')
+    # df_processed['time'] = pd.to_datetime(df_processed['time'])
+    # df_processed.set_index('time', inplace=True)
+    # df_processed.sort_index(inplace=True)
+
+    df_processed = df_merg.copy()
+    
+    print('Processed data shape:', df_processed.shape)
+    print('Columns:', df_processed.columns.tolist())
+    
+    # 定义特征名称（映射到原项目特征）
+    feat_names = ['PM2.5', 'PM10', 'NO2', 'CO', 'O3_8h', 'SO2', 
+                  '风向', '气温', '气压', '相对湿度', '风速', '1小时降水量']
+    
+    # 检查特征是否存在
+    missing_features = [feat for feat in feat_names if feat not in df_processed.columns]
+    if missing_features:
+        print('Missing features:', missing_features)
+        # 使用可用特征
+        feat_names = [feat for feat in feat_names if feat in df_processed.columns]
+    
+    print('Using features:', feat_names)
+    
+    # 序列参数
+    x_length = 24  # 24小时历史数据
+    y_length = 1   # 预测1小时
+    y_step = 1     # 预测步长
+    
+    # 生成训练数据
     x = []
     y = []
-    for station_id in station_id_related_list:
-        df_one_station = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(station_id))
-        x_one = []
-        for start_id in range(0, len(df_one_station)-x_length-y_length+1-y_step+1, y_length):
-            x_data = np.array(df_one_station[feat_names].iloc[start_id: start_id+x_length])
-            y_list = np.array(df_one_station['PM25_Concentration'].iloc[start_id+x_length+y_step-1: start_id+x_length+y_length+y_step-1])
-            if np.isnan(x_data).any() or np.isnan(y_list).any():
-                continue
-            x_one.append(x_data)
-            if station_id == center_station_id:
-                y.append(np.mean(y_list))
-        if len(x_one) <= 0:
+    
+    for start_id in range(0, len(df_processed) - x_length - y_length + 1, y_length):
+        # 提取特征数据
+        x_data = np.array(df_processed[feat_names].iloc[start_id: start_id + x_length])
+        
+        # 提取目标值（PM2.5）
+        y_target = np.array(df_processed['PM2.5'].iloc[start_id + x_length: start_id + x_length + y_length])
+        
+        # 检查是否有NaN值
+        if np.isnan(x_data).any() or np.isnan(y_target).any():
             continue
-        x_one = np.array(x_one)
-        x.append(x_one)
-        print('station_id: {}  x_shape: {}'.format(station_id, x_one.shape))
-
+            
+        x.append(x_data)
+        y.append(np.mean(y_target))
+    
+    # 转换为numpy数组
     x = np.array(x)
-    x = x.transpose((1, 0, 2, 3))
     y = np.array(y)
+    
+    # 重塑为模型需要的格式 [样本数, 站点数, 时间步长, 特征维度]
+    # 单站点数据，站点数为1
+    x = x.reshape((x.shape[0], 1, x.shape[1], x.shape[2]))
+    
     print('x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
     
-    # Save the four dimensional data as pickle file
+    # 保存为pickle文件
+    center_station_id = 'hezhou'  # 使用城市名称作为标识
     utils.save_pickle('./data/xy/x_{}.pkl'.format(center_station_id), x)
     utils.save_pickle('./data/xy/y_{}.pkl'.format(center_station_id), y)
-    print('x_shape: {}\ny_shape: {}'.format(x.shape, y.shape))
-
+    
+    print('Data saved successfully!')
+    print('x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
 
 if __name__ == '__main__':
     main()

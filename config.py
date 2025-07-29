@@ -2,8 +2,8 @@
 
 # model hyper-parameters
 rand_seed = 314
-f_x = './data/xy/x_1013.pkl'
-f_y = './data/xy/y_1013.pkl'
+f_x = './data/xy/x_hezhou.pkl'
+f_y = './data/xy/y_hezhou.pkl'
 
 model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
 device = 'cpu'  # 'cpu' or 'cuda'
@@ -14,7 +14,7 @@ num_layers = 4
 levels = 4
 kernel_size = 4
 dropout = 0.25
-in_channels = 18
+in_channels = 1
 
 batch_size = 1
 lr = 1e-3
