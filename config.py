@@ -2,10 +2,14 @@
 
 # model hyper-parameters
 rand_seed = 314
-f_x = './data/xy/x_hezhou.pkl'
-f_y = './data/xy/y_hezhou.pkl'
+# Choose data file based on model type
+model_name = 'GRU'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
+if model_name in ['RNN', 'GRU', 'LSTM', 'TCN']:
+    f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
+else:
+    f_x = './data/xy/x_1013.pkl'  # 4D data for STCN model
+f_y = './data/xy/y_1013.pkl'
 
-model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
 device = 'cpu'  # 'cpu' or 'cuda'
 input_size = 12
 hidden_size = 32
@@ -14,7 +18,7 @@ num_layers = 4
 levels = 4
 kernel_size = 4
 dropout = 0.25
-in_channels = 1
+in_channels = 18
 
 batch_size = 1
 lr = 1e-3

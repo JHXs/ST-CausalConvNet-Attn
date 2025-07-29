@@ -63,10 +63,23 @@ def main():
     y = np.array(y)
     print('x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
     
-    # Save the four dimensional data as pickle file
+    # Save the four dimensional data as pickle file (for STCN model)
     utils.save_pickle('./data/xy/x_{}.pkl'.format(center_station_id), x)
     utils.save_pickle('./data/xy/y_{}.pkl'.format(center_station_id), y)
-    print('x_shape: {}\ny_shape: {}'.format(x.shape, y.shape))
+    print('4D data saved: x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
+    
+    # Convert 4D to 3D by aggregating spatial information (for GRU/LSTM/RNN/TCN models)
+    # Method 1: Mean aggregation across stations
+    x_3d_mean = np.mean(x, axis=1)  # [example_count, seq_step, feat_size]
+    
+    # Method 2: Use only center station data (first station after transpose)
+    x_3d_center = x[:, 0, :, :]  # [example_count, seq_step, feat_size]
+    
+    # Save 3D versions
+    utils.save_pickle('./data/xy/x_{}_3d_mean.pkl'.format(center_station_id), x_3d_mean)
+    utils.save_pickle('./data/xy/x_{}_3d_center.pkl'.format(center_station_id), x_3d_center)
+    print('3D data saved - Mean aggregation: x_shape: {}'.format(x_3d_mean.shape))
+    print('3D data saved - Center only: x_shape: {}'.format(x_3d_center.shape))
 
 
 if __name__ == '__main__':

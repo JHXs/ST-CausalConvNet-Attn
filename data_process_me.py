@@ -31,30 +31,32 @@ def main():
     print(df_merg.head(24))
     df_merg.to_csv('./data/hezhou_air_data/aqi_meteo_merged.csv', index=True)
 
+    df_processed = df_merg.copy()
+
     # 处理异常、缺失值
     print("数据预览：")
-    print(df_merg.head())
+    print(df_processed.head())
     # 查看数据统计概要
     print("\n数据概要：")
-    print(df_merg.describe().T)
-    # df_merg.describe().T
+    print(df_processed.describe().T)
+    # df_processed.describe().T
 
     # 风向：把 >360 或 <0 的设为 NaN
-    df_merg.loc[df_merg['风向'] > 360, '风向'] = pd.NA
-    df_merg.loc[df_merg['风向'] < 0,   '风向'] = pd.NA
+    df_processed.loc[df_processed['风向'] > 360, '风向'] = pd.NA
+    df_processed.loc[df_processed['风向'] < 0,   '风向'] = pd.NA
 
     # 气压：把 0 设为 NaN
-    df_merg.loc[df_merg['气压'] == 0, '气压'] = pd.NA
+    df_processed.loc[df_processed['气压'] == 0, '气压'] = pd.NA
 
     # 方法 A：用前后有效风向的线性角度插值
-    df_merg['风向'] = df_merg['风向'].interpolate(method='linear')
+    df_processed['风向'] = df_processed['风向'].interpolate(method='linear')
     # 只有一条缺失，最稳妥的是线性插值：
-    df_merg['气压'] = df_merg['气压'].interpolate(method='time')
-    print(df_merg.isna().sum().sum())   # 期望输出 0
+    df_processed['气压'] = df_processed['气压'].interpolate(method='time')
+    print('\n处理后NA值数量:', df_processed.isna().sum().sum())   # 期望输出 0
 
     print("\n处理后的数据概要：")
-    print(df_merg.describe().T)
-    # df_merg.to_csv('./data/hezhou_air_data/processed_data.csv')
+    print(df_processed.describe().T)
+    # df_processed.to_csv('./data/hezhou_air_data/processed_data.csv')
 
     # generate x and y
     # x_shape: [example_count, num_releated, seq_step, feat_size]
@@ -65,8 +67,6 @@ def main():
     # df_processed['time'] = pd.to_datetime(df_processed['time'])
     # df_processed.set_index('time', inplace=True)
     # df_processed.sort_index(inplace=True)
-
-    df_processed = df_merg.copy()
     
     print('Processed data shape:', df_processed.shape)
     print('Columns:', df_processed.columns.tolist())
@@ -123,7 +123,22 @@ def main():
     utils.save_pickle('./data/xy/y_{}.pkl'.format(center_station_id), y)
     
     print('Data saved successfully!')
-    print('x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
-
+    # Save the four dimensional data as pickle file (for STCN model)
+    utils.save_pickle('./data/xy/x_{}.pkl'.format(center_station_id), x)
+    utils.save_pickle('./data/xy/y_{}.pkl'.format(center_station_id), y)
+    print('4D data saved: x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
+    
+    # Convert 4D to 3D by aggregating spatial information (for GRU/LSTM/RNN/TCN models)
+    # Method 1: Mean aggregation across stations
+    x_3d_mean = np.mean(x, axis=1)  # [example_count, seq_step, feat_size]
+    
+    # Method 2: Use only center station data (first station after transpose)
+    x_3d_center = x[:, 0, :, :]  # [example_count, seq_step, feat_size]
+    
+    # Save 3D versions
+    utils.save_pickle('./data/xy/x_{}_3d_mean.pkl'.format(center_station_id), x_3d_mean)
+    utils.save_pickle('./data/xy/x_{}_3d_center.pkl'.format(center_station_id), x_3d_center)
+    print('3D data saved - Mean aggregation: x_shape: {}'.format(x_3d_mean.shape))
+    print('3D data saved - Center only: x_shape: {}'.format(x_3d_center.shape))
 if __name__ == '__main__':
     main()
