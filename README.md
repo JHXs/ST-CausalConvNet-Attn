@@ -40,6 +40,14 @@ The architecture of ST-CausalConvNet, which includes two parts: (A) integration 
 
 All model parameters can be set in `config.py`, such as the learning rate, batch size, number of layers, kernel size, etc.
 
+#### process data
+
+```python
+python data_process_me.py
+```
+
+The program processes the raw data set and saves it as a pkl file in the Xy folder for subsequent model training and verification.
+
 #### Training the model
 
 ```python
