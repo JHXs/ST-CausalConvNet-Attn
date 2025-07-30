@@ -118,7 +118,7 @@ def main():
     print('x_shape: {}  y_shape: {}'.format(x.shape, y.shape))
     
     # 保存为pickle文件
-    center_station_id = 'hezhou'  # 使用城市名称作为标识
+    center_station_id = 'hz'  # 使用城市名称作为标识
     utils.save_pickle('./data/xy/x_{}.pkl'.format(center_station_id), x)
     utils.save_pickle('./data/xy/y_{}.pkl'.format(center_station_id), y)
     

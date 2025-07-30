@@ -28,8 +28,10 @@ class SimpleRNN(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred, hidden
 
-    def init_hidden(self):
-        return torch.randn(1, 24, self.hidden_size)
+    def init_hidden(self, device=None):
+        if device is None:
+            device = next(self.parameters()).device
+        return torch.randn(1, 24, self.hidden_size, device=device)
 
 
 class SimpleGRU(nn.Module):
@@ -50,8 +52,10 @@ class SimpleGRU(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred, hidden
 
-    def init_hidden(self):
-        return torch.randn(1, 24, self.hidden_size)
+    def init_hidden(self, device=None):
+        if device is None:
+            device = next(self.parameters()).device
+        return torch.randn(1, 24, self.hidden_size, device=device)
 
 
 class SimpleLSTM(nn.Module):
@@ -72,8 +76,10 @@ class SimpleLSTM(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred
 
-    def init_hidden(self):
-        return torch.randn(1, 24, self.hidden_size)
+    def init_hidden(self, device=None):
+        if device is None:
+            device = next(self.parameters()).device
+        return torch.randn(1, 24, self.hidden_size, device=device)
 
 
 class TCN(nn.Module):

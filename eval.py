@@ -23,21 +23,21 @@ def eval(net, x_test, y_test, plot=False):
     mae_valid_list = []
     y_valid_pred_final = []
     optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss().to(cfg.device)
     h_state = None
     y_valid_pred_final = []
     rmse_valid = 0.0
     cnt = 0
     for start in range(len(x_valid) - cfg.batch_size + 1):
-        x_input_valid = torch.tensor(x_valid[start:start + cfg.batch_size], dtype=torch.float32)
-        y_true_valid = torch.tensor(y_valid[start:start + cfg.batch_size], dtype=torch.float32)
+        x_input_valid = torch.tensor(x_valid[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
+        y_true_valid = torch.tensor(y_valid[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
         if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
             y_valid_pred, _h_state = net(x_input_valid, h_state)
         else:
             y_valid_pred = net(x_input_valid)
-        y_valid_pred_final.extend(y_valid_pred.data.numpy())
+        y_valid_pred_final.extend(y_valid_pred.data.cpu().numpy())
         loss_valid = criterion(y_valid_pred, y_true_valid).data
-        mse_valid_batch = loss_valid.numpy()
+        mse_valid_batch = loss_valid.cpu().numpy()
         rmse_valid_batch = np.sqrt(mse_valid_batch)
         rmse_valid += mse_valid_batch
         cnt += 1
@@ -76,7 +76,8 @@ def main():
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 
     # Load model parameters
-    net.load_state_dict(torch.load(cfg.model_save_pth))
+    net = net.to(cfg.device)
+    net.load_state_dict(torch.load(cfg.model_save_pth, map_location=cfg.device))
     print(utils.get_param_number(net=net))
 
     # Evaluation

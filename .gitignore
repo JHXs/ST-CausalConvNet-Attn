@@ -135,3 +135,4 @@ data/hezhou_air_data/
 data/xy/*.pkl
 reports.md
 models/
+ST-CausalConvNet.zip

@@ -18,7 +18,7 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
     mae_valid_list = []
     y_valid_pred_final = []
     optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss().to(cfg.device)
     h_state = None
 
     for epoch in range(1, cfg.n_epochs + 1):
@@ -28,8 +28,8 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
             net.train()
             progress = start / (len(x_train) - cfg.batch_size + 1)
 
-            x_input = torch.tensor(x_train[start:start + cfg.batch_size], dtype=torch.float32)
-            y_true = torch.tensor(y_train[start:start + cfg.batch_size], dtype=torch.float32)
+            x_input = torch.tensor(x_train[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
+            y_true = torch.tensor(y_train[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
 
             if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
                 y_pred, _h_state = net(x_input, h_state)
@@ -42,7 +42,7 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
             loss.backward()
             optimizer.step()
 
-            mse_train_batch = loss.data
+            mse_train_batch = loss.data.cpu().numpy()
             rmse_train_batch = np.sqrt(mse_train_batch)
             rmse_train += mse_train_batch
             if start % int((len(x_train) - cfg.batch_size) / 5) == 0:
@@ -56,15 +56,15 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
         rmse_valid = 0.0
         cnt = 0
         for start in range(len(x_valid) - cfg.batch_size + 1):
-            x_input_valid = torch.tensor(x_valid[start:start + cfg.batch_size], dtype=torch.float32)
-            y_true_valid = torch.tensor(y_valid[start:start + cfg.batch_size], dtype=torch.float32)
+            x_input_valid = torch.tensor(x_valid[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
+            y_true_valid = torch.tensor(y_valid[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
             if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
                 y_valid_pred, _h_state = net(x_input_valid, h_state)
             else:
                 y_valid_pred = net(x_input_valid)
-            y_valid_pred_final.extend(y_valid_pred.data.numpy())
+            y_valid_pred_final.extend(y_valid_pred.data.cpu().numpy())
             loss_valid = criterion(y_valid_pred, y_true_valid).data
-            mse_valid_batch = loss_valid.numpy()
+            mse_valid_batch = loss_valid.cpu().numpy()
             rmse_valid_batch = np.sqrt(mse_valid_batch)
             rmse_valid += mse_valid_batch
             cnt += 1
@@ -109,6 +109,7 @@ def main():
         net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                           num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
+    net = net.to(cfg.device)
     # sys.exit(0)
 
     # Training
