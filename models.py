@@ -13,6 +13,7 @@ class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25):
         super(SimpleRNN, self).__init__()
         self.hidden_size = hidden_size
+        self.num_layers = num_layers
         self.rnn = nn.RNN(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -28,16 +29,17 @@ class SimpleRNN(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred, hidden
 
-    def init_hidden(self, device=None):
+    def init_hidden(self, batch_size, device=None):
         if device is None:
             device = next(self.parameters()).device
-        return torch.randn(1, 24, self.hidden_size, device=device)
+        return torch.randn(self.num_layers, batch_size, self.hidden_size, device=device)
 
 
 class SimpleGRU(nn.Module):
     def __init__(self, input_size, hidden_size, output_size=1, num_layers=1, dropout=0.25):
         super(SimpleGRU, self).__init__()
         self.hidden_size = hidden_size
+        self.num_layers = num_layers
         self.gru = nn.GRU(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -52,16 +54,17 @@ class SimpleGRU(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred, hidden
 
-    def init_hidden(self, device=None):
+    def init_hidden(self, batch_size, device=None):
         if device is None:
             device = next(self.parameters()).device
-        return torch.randn(1, 24, self.hidden_size, device=device)
+        return torch.randn(self.num_layers, batch_size, self.hidden_size, device=device)
 
 
 class SimpleLSTM(nn.Module):
     def __init__(self, input_size, hidden_size, output_size=1, num_layers=1, dropout=0.25):
         super(SimpleLSTM, self).__init__()
         self.hidden_size = hidden_size
+        self.num_layers = num_layers
         self.lstm = nn.LSTM(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -76,10 +79,10 @@ class SimpleLSTM(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred
 
-    def init_hidden(self, device=None):
+    def init_hidden(self, batch_size, device=None):
         if device is None:
             device = next(self.parameters()).device
-        return torch.randn(1, 24, self.hidden_size, device=device)
+        return torch.randn(self.num_layers, batch_size, self.hidden_size, device=device)
 
 
 class TCN(nn.Module):
@@ -169,7 +172,7 @@ class STCN(nn.Module):
         self.linear = nn.Linear(num_channels[-1], output_size)
 
     def forward(self, x):
-        conv_out = self.conv(x).squeeze(0)
+        conv_out = self.conv(x).squeeze(1)  # squeeze channel dimension after conv2d
         output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)
         pred = self.linear(output[:, -1, :])
         return pred

@@ -6,6 +6,8 @@ import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
+import torch
+from torch.utils.data import DataLoader, TensorDataset
 
 
 def save_pickle(filename, data):
@@ -47,7 +49,7 @@ def get_ids_for_tvt():
     return train_ids, valid_ids, test_ids
 
 
-def load_data(f_x, f_y):
+def load_data(f_x, f_y, batch_size=32):
     x = load_pickle(f_x)
     y = load_pickle(f_y)
     y = np.array(y[:, np.newaxis])
@@ -66,8 +68,23 @@ def load_data(f_x, f_y):
 
     print('x_shape: {}  y_shape: {}\nx_train_shape: {}  y_train_shape: {}  x_valid_shape: {}  y_valid_shape: {}  x_test_shape: {}  y_test_shape: {}\n'
           .format(x.shape, y.shape, x_train.shape, y_train.shape, x_valid.shape, y_valid.shape, x_test.shape, y_test.shape))
-    return x_train, y_train, x_valid, y_valid, x_test, y_test
-
+    
+    x_train_tensor = torch.FloatTensor(x_train)
+    y_train_tensor = torch.FloatTensor(y_train)
+    x_valid_tensor = torch.FloatTensor(x_valid)
+    y_valid_tensor = torch.FloatTensor(y_valid)
+    x_test_tensor = torch.FloatTensor(x_test)
+    y_test_tensor = torch.FloatTensor(y_test)
+    
+    train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
+    valid_dataset = TensorDataset(x_valid_tensor, y_valid_tensor)
+    test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, valid_loader, test_loader
 
 def get_param_number(net):
     total_num = sum(p.numel() for p in net.parameters())

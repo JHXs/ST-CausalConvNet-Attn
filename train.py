@@ -12,7 +12,7 @@ import utils
 import config as cfg
 
 
-def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
+def train(net, train_loader, valid_loader, test_loader, plot=False):
     rmse_train_list = []
     rmse_valid_list = []
     mae_valid_list = []
@@ -24,14 +24,21 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
     for epoch in range(1, cfg.n_epochs + 1):
         rmse_train = 0.0
         cnt = 0
-        for start in range(len(x_train) - cfg.batch_size + 1):
+        # Initialize hidden state for each epoch - moved inside batch loop
+        
+        for batch_idx, (x_input, y_true) in enumerate(train_loader):
             net.train()
-            progress = start / (len(x_train) - cfg.batch_size + 1)
+            progress = batch_idx / len(train_loader)
+            
+            # Get actual batch size for this iteration
+            actual_batch_size = x_input.shape[0]
 
-            x_input = torch.tensor(x_train[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
-            y_true = torch.tensor(y_train[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
+            x_input = x_input.to(cfg.device)
+            y_true = y_true.to(cfg.device)
 
             if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
+                # Initialize hidden state with actual batch size
+                h_state = net.init_hidden(actual_batch_size, cfg.device)
                 y_pred, _h_state = net(x_input, h_state)
                 h_state = _h_state.data
             else:
@@ -45,7 +52,7 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
             mse_train_batch = loss.data.cpu().numpy()
             rmse_train_batch = np.sqrt(mse_train_batch)
             rmse_train += mse_train_batch
-            if start % int((len(x_train) - cfg.batch_size) / 5) == 0:
+            if batch_idx % int(len(train_loader) / 5) == 0:
                 print('epoch: {}  progress: {:.0f}%  loss: {:.3f}  rmse: {:.3f}'.format(epoch, progress * 100, loss, rmse_train_batch))
             cnt += 1
         rmse_train = np.sqrt(rmse_train / cnt)
@@ -53,24 +60,33 @@ def train(net, x_train, y_train, x_valid, y_valid, x_test, y_test, plot=False):
         # validation
         net.eval()
         y_valid_pred_final = []
+        y_valid_true = []
         rmse_valid = 0.0
         cnt = 0
-        for start in range(len(x_valid) - cfg.batch_size + 1):
-            x_input_valid = torch.tensor(x_valid[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
-            y_true_valid = torch.tensor(y_valid[start:start + cfg.batch_size], dtype=torch.float32).to(cfg.device)
+        
+        for x_input_valid, y_true_valid in valid_loader:
+            x_input_valid = x_input_valid.to(cfg.device)
+            y_true_valid = y_true_valid.to(cfg.device)
+            
             if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
+                # Initialize hidden state with actual batch size
+                actual_batch_size = x_input_valid.shape[0]
+                h_state = net.init_hidden(actual_batch_size, cfg.device)
                 y_valid_pred, _h_state = net(x_input_valid, h_state)
+                h_state = _h_state.data
             else:
                 y_valid_pred = net(x_input_valid)
             y_valid_pred_final.extend(y_valid_pred.data.cpu().numpy())
+            y_valid_true.extend(y_true_valid.data.cpu().numpy())
             loss_valid = criterion(y_valid_pred, y_true_valid).data
             mse_valid_batch = loss_valid.cpu().numpy()
             rmse_valid_batch = np.sqrt(mse_valid_batch)
             rmse_valid += mse_valid_batch
             cnt += 1
         y_valid_pred_final = np.array(y_valid_pred_final).reshape((-1, 1))
+        y_valid_true = np.array(y_valid_true).reshape((-1, 1))
         rmse_valid = np.sqrt(rmse_valid / cnt)
-        mae_valid = metrics.mean_absolute_error(y_valid, y_valid_pred_final)
+        mae_valid = metrics.mean_absolute_error(y_valid_true, y_valid_pred_final)
 
         rmse_train_list.append(rmse_train)
         rmse_valid_list.append(rmse_valid)
@@ -93,7 +109,7 @@ def main():
 
     # Load data
     print('\nLoading data...\n')
-    x_train, y_train, x_valid, y_valid, x_test, y_test = utils.load_data(f_x=cfg.f_x, f_y=cfg.f_y)
+    train_loader, valid_loader, test_loader = utils.load_data(f_x=cfg.f_x, f_y=cfg.f_y, batch_size=cfg.batch_size)
 
     # Generate model
     net = None
@@ -114,7 +130,7 @@ def main():
 
     # Training
     print('\nStart training...\n')
-    train(net, x_train, y_train, x_valid, y_valid, x_test, y_test)
+    train(net, train_loader, valid_loader, test_loader)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
+model_name = 'GRU'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN']:
     f_x = './data/xy/x_hz_3d_mean.pkl'  # 3D data for sequential models
 else:
@@ -21,7 +21,7 @@ kernel_size = 4
 dropout = 0.25
 in_channels = 1  ## 输入数据的通道数，选择的相关站点数
 
-batch_size = 1
+batch_size = 32
 lr = 1e-3
 n_epochs = 50
 model_save_pth = './models/model_{}.pth'.format(model_name)
