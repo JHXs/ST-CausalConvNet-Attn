@@ -48,7 +48,7 @@ pytz==2025.2
     # via pandas
 scikit-learn==1.7.1
     # via st-causalconvnet (pyproject.toml)
-scipy==1.16.1
+scipy==1.16.0
     # via scikit-learn
 six==1.17.0
     # via python-dateutil

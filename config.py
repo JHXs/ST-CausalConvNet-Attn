@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'GRU'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
+model_name = 'LSTM'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN']:
     f_x = './data/xy/x_hz_3d_mean.pkl'  # 3D data for sequential models
 else:
