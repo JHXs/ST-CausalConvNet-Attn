@@ -80,9 +80,9 @@ def load_data(f_x, f_y, batch_size=32):
     valid_dataset = TensorDataset(x_valid_tensor, y_valid_tensor)
     test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
     
     return train_loader, valid_loader, test_loader
 

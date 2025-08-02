@@ -16,41 +16,55 @@ import config as cfg
 def eval(net, test_loader, plot=False):
     print('\nStart evaluating...\n')
     net.eval()
-    y_valid_pred_final = []
-    y_valid_true = []
     criterion = nn.MSELoss().to(cfg.device)
     h_state = None
+    
+    # Initialize accumulators on device
     rmse_valid = 0.0
+    mae_valid = 0.0
     cnt = 0
     
-    for x_input_valid, y_true_valid in test_loader:
-        x_input_valid = x_input_valid.to(cfg.device)
-        y_true_valid = y_true_valid.to(cfg.device)
-        
-        if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
-            # Initialize hidden state with actual batch size
-            actual_batch_size = x_input_valid.shape[0]
-            h_state = net.init_hidden(actual_batch_size, cfg.device)
-            y_valid_pred, _h_state = net(x_input_valid, h_state)
-        else:
-            y_valid_pred = net(x_input_valid)
-        
-        y_valid_pred_final.extend(y_valid_pred.data.cpu().numpy())
-        y_valid_true.extend(y_true_valid.data.cpu().numpy())
-        loss_valid = criterion(y_valid_pred, y_true_valid).data
-        mse_valid_batch = loss_valid.cpu().numpy()
-        rmse_valid_batch = np.sqrt(mse_valid_batch)
-        rmse_valid += mse_valid_batch
-        cnt += 1
+    # Lists for R2 calculation (collected at the end)
+    y_valid_pred_final = []
+    y_valid_true = []
     
-    y_valid_pred_final = np.array(y_valid_pred_final).reshape((-1, 1))
-    y_valid_true = np.array(y_valid_true).reshape((-1, 1))
-    rmse_valid = np.sqrt(rmse_valid / cnt)
-    mae_valid = metrics.mean_absolute_error(y_valid_true, y_valid_pred_final)
+    with torch.no_grad():
+        for x_input_valid, y_true_valid in test_loader:
+            x_input_valid = x_input_valid.to(cfg.device)
+            y_true_valid = y_true_valid.to(cfg.device)
+            
+            if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
+                actual_batch_size = x_input_valid.shape[0]
+                h_state = net.init_hidden(actual_batch_size, cfg.device)
+                y_valid_pred, _h_state = net(x_input_valid, h_state)
+            else:
+                y_valid_pred = net(x_input_valid)
+            
+            # Calculate metrics on GPU
+            mse_batch = criterion(y_valid_pred, y_true_valid)
+            rmse_batch = torch.sqrt(mse_batch)
+            mae_batch = torch.mean(torch.abs(y_valid_pred - y_true_valid))
+            
+            rmse_valid += rmse_batch
+            mae_valid += mae_batch
+            cnt += 1
+            
+            # Collect predictions for R2 calculation
+            y_valid_pred_final.append(y_valid_pred.cpu())
+            y_valid_true.append(y_true_valid.cpu())
+    
+    # Calculate final metrics
+    rmse_valid = rmse_valid / cnt
+    mae_valid = mae_valid / cnt
+    
+    # Calculate R2 on CPU (requires sklearn)
+    y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
+    y_valid_true = torch.cat(y_valid_true).numpy().reshape((-1, 1))
     r2_valid = metrics.r2_score(y_valid_true, y_valid_pred_final)
 
-    print('\nRMSE_valid: {:.4f}  MAE_valid: {:.4f}  R2_valid: {:.4f}\n'.format(rmse_valid, mae_valid, r2_valid))
-    return rmse_valid, mae_valid, r2_valid
+    print('\nRMSE_valid: {:.4f}  MAE_valid: {:.4f}  R2_valid: {:.4f}\n'.format(
+        rmse_valid.item(), mae_valid.item(), r2_valid))
+    return rmse_valid.item(), mae_valid.item(), r2_valid
 
 
 def main():
