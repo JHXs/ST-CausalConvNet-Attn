@@ -56,8 +56,6 @@ sympy==1.14.0
     # via torch
 threadpoolctl==3.6.0
     # via scikit-learn
-torch==2.7.1+cpu
-    # via st-causalconvnet (pyproject.toml)
 typing-extensions==4.14.1
     # via torch
 tzdata==2025.2
