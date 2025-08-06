@@ -58,7 +58,7 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
                 rmse_train_batch = torch.sqrt(loss)
                 rmse_train += rmse_train_batch
             
-            if batch_idx % int(len(train_loader) / 5) == 0:
+            if batch_idx % round(len(train_loader) / 5) == 0:
                 progress = batch_idx / len(train_loader)
                 print('epoch: {}  progress: {:.0f}%  loss: {:.3f}  rmse: {:.3f}'.format(
                     epoch, progress * 100, loss, rmse_train_batch))
