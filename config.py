@@ -22,12 +22,12 @@ dropout = 0.25
 in_channels = 18  ## 输入数据的通道数，选择的相关站点数
 
 batch_size = 32
-lr = 1e-2
+lr = 1e-3
 n_epochs = 100  # 先测试10个epoch
 
 # 学习率调度参数
 lr_scheduler = True
-lr_patience = 5  # 5个epoch没有改善就降低学习率
+lr_patience = 3  # 5个epoch没有改善就降低学习率
 lr_factor = 0.5  # 学习率衰减因子
 min_lr = 1e-5   # 最小学习率
 
