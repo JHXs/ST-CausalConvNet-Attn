@@ -11,13 +11,13 @@ import utils
 
 def main():
     # 空气质量数据插值到小时级
-    df_airq = pd.read_csv('./data/hezhou_air_data/20200101-20250415最大值实况-十四五城市日均值.csv')
+    df_airq = pd.read_csv('./data/hezhou_air_data/HeZhou-aqi-daily_20200101-20250415.csv')
     hourly_df = utils.replicate_to_hourly(df_airq)
     print(hourly_df.head(24))
-    # hourly_df.to_csv(f'./data/hezhou_air_data/aqi.csv', index=True)
+    # hourly_df.to_csv(f'./data/hezhou_air_data/aqi_replicate_to_hourly.csv', index=True)
 
     # 空气质量与气象数据聚合
-    df_weather = pd.read_csv('./data/hezhou_air_data/20200101-20250415逐小时气象要素.csv')
+    df_weather = pd.read_csv('./data/hezhou_air_data/HeZhou-meteo-hourly_20200101-20250415.csv')
     df_weather['time'] = pd.to_datetime(df_weather['time'], format='%Y%m%d%H')
     df_weather.drop_duplicates(subset=['time'], inplace=True)  # 去重
     df_weather.set_index('time', inplace=True)
