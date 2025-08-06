@@ -19,6 +19,17 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
     criterion = nn.MSELoss().to(cfg.device)
     h_state = None
+    
+    # 学习率调度器
+    if cfg.lr_scheduler:
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='min', factor=cfg.lr_factor, 
+            patience=cfg.lr_patience, min_lr=cfg.min_lr
+        )
+    
+    # 早停机制
+    best_valid_loss = float('inf')
+    patience_counter = 0
 
     for epoch in range(1, cfg.n_epochs + 1):
         # Training phase
@@ -95,14 +106,34 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
         rmse_valid_list.append(rmse_valid_cpu)
         mae_valid_list.append(mae_valid_cpu)
         
-        # save the best model
-        if rmse_valid_cpu == np.min(rmse_valid_list):
-            torch.save(net.state_dict(), cfg.model_save_pth)
+        # 学习率调度
+        if cfg.lr_scheduler:
+            scheduler.step(rmse_valid_cpu)
+        
+        # 早停检查
+        if cfg.early_stopping:
+            if rmse_valid_cpu < best_valid_loss:
+                best_valid_loss = rmse_valid_cpu
+                patience_counter = 0
+                # 保存最佳模型
+                torch.save(net.state_dict(), cfg.model_save_pth)
+                print(f"  -> New best model saved! (RMSE: {rmse_valid_cpu:.4f})")
+            else:
+                patience_counter += 1
+                if patience_counter >= cfg.es_patience:
+                    print(f"\nEarly stopping triggered after {epoch} epochs!")
+                    break
+        else:
+            # 原有的模型保存逻辑
+            if rmse_valid_cpu == np.min(rmse_valid_list):
+                torch.save(net.state_dict(), cfg.model_save_pth)
 
         print('\n>>> epoch: {}  RMSE_train: {:.4f}  RMSE_valid: {:.4f} MAE_valid: {:.4f}\n'
               '    RMSE_valid_min: {:.4f}  MAE_valid_min: {:.4f}\n'
+              '    LR: {:.6f}\n'
               .format(epoch, rmse_train_cpu, rmse_valid_cpu, mae_valid_cpu, 
-                     np.min(rmse_valid_list), np.min(mae_valid_list)))
+                     np.min(rmse_valid_list), np.min(mae_valid_list), 
+                     optimizer.param_groups[0]['lr']))
 
 
 def main():
@@ -128,6 +159,12 @@ def main():
     elif cfg.model_name == 'STCN':
         net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                           num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'STCN_DualAttention':
+        net = models.STCN_DualAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                                       num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'STCN_DualAttention_v2':
+        net = models.STCN_DualAttention_v2(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                                          num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
     net = net.to(cfg.device)
     # sys.exit(0)

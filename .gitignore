@@ -133,7 +133,7 @@ data/microsoft_urban_air_data/*.csv
 data/microsoft_urban_air_data/readme.pdf
 data/hezhou_air_data/
 data/xy/*.pkl
-reports.md
+md/
 models/
 ST-CausalConvNet.zip
 test.py

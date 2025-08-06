@@ -176,3 +176,149 @@ class STCN(nn.Module):
         output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)
         pred = self.linear(output[:, -1, :])
         return pred
+
+
+class STCN_DualAttention_v2(nn.Module):
+    """
+    改进版双路注意力STCN模型
+    主要改进：
+    1. 简化注意力机制，减少参数量
+    2. 添加残差连接，保持原有特征
+    3. 改进特征融合策略
+    4. 使用最后一个时间步作为输出
+    """
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
+        super(STCN_DualAttention_v2, self).__init__()
+        
+        # 原始STCN组件 - 与原始STCN保持一致
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=(1, 1)),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 1, kernel_size=(1, 1)),
+            nn.BatchNorm2d(1),
+            nn.ReLU()
+        )
+        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
+        
+        # 简化的空间注意力
+        self.spatial_attention = nn.Sequential(
+            nn.Conv1d(num_channels[-1], num_channels[-1] // 4, kernel_size=1),
+            nn.ReLU(),
+            nn.Conv1d(num_channels[-1] // 4, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+        
+        # 简化的时序注意力
+        self.temporal_attention = nn.Sequential(
+            nn.Linear(num_channels[-1], num_channels[-1] // 4),
+            nn.ReLU(),
+            nn.Linear(num_channels[-1] // 4, 1),
+            nn.Sigmoid()
+        )
+        
+        # 特征融合层（简化版）
+        self.fusion_layer = nn.Sequential(
+            nn.Linear(num_channels[-1] * 2, num_channels[-1]),
+            nn.ReLU(),
+            nn.Dropout(dropout)
+        )
+        
+        # 输出层
+        self.linear = nn.Linear(num_channels[-1], output_size)
+        
+        # 层归一化
+        self.layer_norm = nn.LayerNorm(num_channels[-1])
+
+    def forward(self, x):
+        # 原始STCN处理
+        conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
+        output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 空间注意力
+        spatial_weights = self.spatial_attention(output.transpose(1, 2))  # [batch, 1, seq_len]
+        spatial_enhanced = output * spatial_weights.transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 时序注意力
+        temporal_weights = self.temporal_attention(output)  # [batch, seq_len, 1]
+        temporal_enhanced = output * temporal_weights  # [batch, seq_len, features]
+        
+        # 残差连接：保持原始特征
+        residual = output
+        
+        # 特征融合
+        combined_features = torch.cat([spatial_enhanced, temporal_enhanced], dim=-1)
+        fused_features = self.fusion_layer(combined_features)
+        
+        # 残差连接 + 层归一化
+        final_features = self.layer_norm(fused_features + residual)
+        
+        # 使用最后一个时间步进行预测
+        last_step = final_features[:, -1, :]  # [batch, features]
+        pred = self.linear(last_step)
+        
+        return pred
+
+
+class STCN_DualAttention(nn.Module):
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
+        super(STCN_DualAttention, self).__init__()
+        
+        # 原有STCN组件
+        self.conv = torch.nn.Sequential(
+            torch.nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1), stride=1, padding=0),
+            torch.nn.BatchNorm2d(64),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(in_channels=64, out_channels=1, kernel_size=(1, 1), stride=1, padding=0),
+            torch.nn.BatchNorm2d(1),
+            torch.nn.ReLU()
+        )
+        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout=dropout)
+        
+        # 空间注意力分支
+        self.spatial_attention = nn.Sequential(
+            nn.Conv1d(num_channels[-1], 16, kernel_size=1),
+            nn.ReLU(),
+            nn.Conv1d(16, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+        
+        # 时序注意力分支
+        self.temporal_attention = nn.Sequential(
+            nn.Linear(num_channels[-1], 32),
+            nn.Tanh(),
+            nn.Linear(32, 1),
+            nn.Sigmoid()
+        )
+        
+        # 特征融合网络
+        self.fusion_network = nn.Sequential(
+            nn.Linear(num_channels[-1] * 2, num_channels[-1]),
+            nn.ReLU(),
+            nn.Dropout(dropout * 0.4)  # 比原始dropout率小一些
+        )
+        
+        self.linear = nn.Linear(num_channels[-1], output_size)
+
+    def forward(self, x):
+        # 原有STCN处理流程
+        conv_out = self.conv(x).squeeze(1)  # [batch, seq_len, features]
+        output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 空间注意力：识别重要站点
+        spatial_weights = self.spatial_attention(output.transpose(1, 2))  # [batch, 1, seq_len]
+        spatial_enhanced = output * spatial_weights.transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 时序注意力：识别重要时刻
+        temporal_weights = self.temporal_attention(output)  # [batch, seq_len, 1]
+        temporal_enhanced = output * temporal_weights  # [batch, seq_len, features]
+        
+        # 特征融合
+        combined_features = torch.cat([spatial_enhanced, temporal_enhanced], dim=-1)  # [batch, seq_len, features*2]
+        fused_features = self.fusion_network(combined_features)  # [batch, seq_len, features]
+        
+        # 预测：使用融合后的特征进行时序平均
+        final_output = fused_features.mean(dim=1)  # [batch, features]
+        pred = self.linear(final_output)
+        
+        return pred

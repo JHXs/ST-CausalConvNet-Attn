@@ -5,6 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
+### 激活conda环境
+```bash
+conda activate AQI-Pre
+```
+
 ### Data Processing
 ```bash
 # Process raw air quality and meteorological data
