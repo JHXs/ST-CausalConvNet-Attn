@@ -105,10 +105,16 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
         rmse_train_list.append(rmse_train_cpu)
         rmse_valid_list.append(rmse_valid_cpu)
         mae_valid_list.append(mae_valid_cpu)
+
+        print('\n>>> epoch: {}  RMSE_train: {:.4f}  RMSE_valid: {:.4f} MAE_valid: {:.4f}\n'
+              '    RMSE_valid_min: {:.4f}  MAE_valid_min: {:.4f}'
+              .format(epoch, rmse_train_cpu, rmse_valid_cpu, mae_valid_cpu, 
+                     np.min(rmse_valid_list), np.min(mae_valid_list)))        
         
         # 学习率调度
         if cfg.lr_scheduler:
             scheduler.step(rmse_valid_cpu)
+            print("    LR: {:.6f}\n".format(optimizer.param_groups[0]['lr']))
         
         # 早停检查
         if cfg.early_stopping:
@@ -117,7 +123,7 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
                 patience_counter = 0
                 # 保存最佳模型
                 torch.save(net.state_dict(), cfg.model_save_pth)
-                print(f"  -> New best model saved! (RMSE: {rmse_valid_cpu:.4f})")
+                # print(f"  -> New best model saved! (RMSE: {rmse_valid_cpu:.4f})\n")
             else:
                 patience_counter += 1
                 if patience_counter >= cfg.es_patience:
@@ -127,13 +133,6 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             # 原有的模型保存逻辑
             if rmse_valid_cpu == np.min(rmse_valid_list):
                 torch.save(net.state_dict(), cfg.model_save_pth)
-
-        print('\n>>> epoch: {}  RMSE_train: {:.4f}  RMSE_valid: {:.4f} MAE_valid: {:.4f}\n'
-              '    RMSE_valid_min: {:.4f}  MAE_valid_min: {:.4f}\n'
-              '    LR: {:.6f}\n'
-              .format(epoch, rmse_train_cpu, rmse_valid_cpu, mae_valid_cpu, 
-                     np.min(rmse_valid_list), np.min(mae_valid_list), 
-                     optimizer.param_groups[0]['lr']))
 
 
 def main():
