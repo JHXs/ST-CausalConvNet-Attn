@@ -22,19 +22,21 @@ def load_pickle(filename):
     return data
 
 
-def get_ids_for_tvt():
+def get_ids_for_tvt(hz):
     train_ids = []
     valid_ids = []
     test_ids = []
-    days_in_months = [31, 30, 31, 31, 30, 31, 30, 31, 31, 28, 31, 30-1]  # May to April
-    # days_in_months = [
-    #     31, 29, 30, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2020
-    #     31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2021
-    #     31, 28, 29, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2022
-    #     31, 28, 31, 30, 31, 30, 1, 31, 30, 31, 30, 31,  # 2023
-    #     31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2024
-    #     31, 28, 31, 14  # 2025.1 ~ 2025.4.15
-    # ]  # 2020.1.1 - 2025.4.15
+    if hz == 0:
+        days_in_months = [31, 30, 31, 31, 30, 31, 30, 31, 31, 28, 31, 30-1]  # May to April
+    else:
+        days_in_months = [
+            31, 29, 30, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2020
+            31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2021
+            31, 28, 29, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2022
+            31, 28, 31, 30, 31, 30, 1, 31, 30, 31, 30, 31,  # 2023
+            31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2024
+            31, 28, 31, 15-3  # 2025.1 ~ 2025.4.15, 扣除滑动窗口消失的样本数量
+        ]  # 2020.1.1 - 2025.4.15
     start_id = 0
     for i in range(len(days_in_months)):
         days = days_in_months[i]
@@ -58,7 +60,10 @@ def load_data(f_x, f_y, batch_size=32):
         for i in range(x.shape[-1]):
             ss.fit(x[:, :, i])
             x[:, :, i] = ss.transform(x[:, :, i])
-    train_ids, valid_ids, test_ids = get_ids_for_tvt()
+    if len(y) > 10000:
+        train_ids, valid_ids, test_ids = get_ids_for_tvt(1)
+    else:
+        train_ids, valid_ids, test_ids = get_ids_for_tvt(0)
     x_train = x[train_ids]
     y_train = y[train_ids]
     x_valid = x[valid_ids]

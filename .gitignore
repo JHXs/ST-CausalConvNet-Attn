@@ -136,4 +136,4 @@ data/xy/*.pkl
 md/
 models/
 ST-CausalConvNet.zip
-test.py
+test/
