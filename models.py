@@ -178,17 +178,17 @@ class STCN(nn.Module):
         return pred
 
 
-class STCN_DualAttention(nn.Module):
+class STCN_Attention(nn.Module):
     """
-    改进版双路注意力STCN模型
+    只保留时间注意力机制的STCN模型
     主要改进：
-    1. 简化注意力机制，减少参数量
-    2. 添加残差连接，保持原有特征
-    3. 改进特征融合策略
+    1. 移除空间注意力机制，只保留时间注意力
+    2. 简化特征融合策略
+    3. 保持原有特征的残差连接
     4. 使用最后一个时间步作为输出
     """
     def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
-        super(STCN_DualAttention, self).__init__()
+        super(STCN_Attention, self).__init__()
         
         # 原始STCN组件 - 与原始STCN保持一致
         self.conv = nn.Sequential(
@@ -201,27 +201,12 @@ class STCN_DualAttention(nn.Module):
         )
         self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
         
-        # 简化的空间注意力
-        self.spatial_attention = nn.Sequential(
-            nn.Conv1d(num_channels[-1], num_channels[-1] // 4, kernel_size=1),
-            nn.ReLU(),
-            nn.Conv1d(num_channels[-1] // 4, 1, kernel_size=1),
-            nn.Sigmoid()
-        )
-        
-        # 简化的时序注意力
+        # 时间注意力机制
         self.temporal_attention = nn.Sequential(
             nn.Linear(num_channels[-1], num_channels[-1] // 4),
             nn.ReLU(),
             nn.Linear(num_channels[-1] // 4, 1),
             nn.Sigmoid()
-        )
-        
-        # 特征融合层（简化版）
-        self.fusion_layer = nn.Sequential(
-            nn.Linear(num_channels[-1] * 2, num_channels[-1]),
-            nn.ReLU(),
-            nn.Dropout(dropout)
         )
         
         # 输出层
@@ -235,23 +220,15 @@ class STCN_DualAttention(nn.Module):
         conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
         output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
         
-        # 空间注意力
-        spatial_weights = self.spatial_attention(output.transpose(1, 2))  # [batch, 1, seq_len]
-        spatial_enhanced = output * spatial_weights.transpose(1, 2)  # [batch, seq_len, features]
-        
-        # 时序注意力
+        # 时间注意力
         temporal_weights = self.temporal_attention(output)  # [batch, seq_len, 1]
         temporal_enhanced = output * temporal_weights  # [batch, seq_len, features]
         
         # 残差连接：保持原始特征
         residual = output
         
-        # 特征融合
-        combined_features = torch.cat([spatial_enhanced, temporal_enhanced], dim=-1)
-        fused_features = self.fusion_layer(combined_features)
-        
         # 残差连接 + 层归一化
-        final_features = self.layer_norm(fused_features + residual)
+        final_features = self.layer_norm(temporal_enhanced + residual)
         
         # 使用最后一个时间步进行预测
         last_step = final_features[:, -1, :]  # [batch, features]

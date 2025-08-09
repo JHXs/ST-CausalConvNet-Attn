@@ -3,10 +3,10 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN_DualAttention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN', 'STCN_DualAttention']
+model_name = 'STCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN', 'STCN_Attention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN']:
     f_x = './data/xy/x_hz_3d_mean.pkl'  # 3D data for sequential models
-else:  # STCN and STCN_DualAttention use 4D data
+else:  # STCN and STCN_Attention use 4D data
     f_x = './data/xy/x_hz.pkl'  # 4D data for STCN models
 f_y = './data/xy/y_hz.pkl'
 
