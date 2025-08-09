@@ -5,25 +5,25 @@ rand_seed = 314
 # Choose data file based on model type
 model_name = 'STCN_DualAttention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN', 'STCN_DualAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN']:
-    f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
+    f_x = './data/xy/x_hz_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN and STCN_DualAttention use 4D data
-    f_x = './data/xy/x_1013.pkl'  # 4D data for STCN models
-f_y = './data/xy/y_1013.pkl'
+    f_x = './data/xy/x_hz.pkl'  # 4D data for STCN models
+f_y = './data/xy/y_hz.pkl'
 
 import torch
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = 12
-hidden_size = 32
+hidden_size = 24 # 32
 output_size = 1
 num_layers = 4
 levels = 4
 kernel_size = 4
-dropout = 0.25
-in_channels = 18  ## 输入数据的通道数，选择的相关站点数
+dropout = 0.3 # 0.25
+in_channels = 1  ## 输入数据的通道数，选择的相关站点数18
 
 batch_size = 32
-lr = 1e-3
-n_epochs = 100  # 先测试10个epoch
+lr = 5e-4 # 1e-3
+n_epochs = 50  
 
 # 学习率调度参数
 lr_scheduler = True

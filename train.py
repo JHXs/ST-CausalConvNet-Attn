@@ -127,7 +127,7 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             else:
                 patience_counter += 1
                 if patience_counter >= cfg.es_patience:
-                    print(f"\nEarly stopping triggered after {epoch} epochs!")
+                    print(f"Early stopping triggered after {epoch} epochs!")
                     break
         else:
             # 原有的模型保存逻辑
