@@ -3,27 +3,27 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'STCN', 'STCN_Attention']
-if model_name in ['RNN', 'GRU', 'LSTM', 'TCN']:
+model_name = 'TCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention']
+if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
     f_x = './data/xy/x_hz_3d_mean.pkl'  # 3D data for sequential models
-else:  # STCN and STCN_Attention use 4D data
+else:  # STCN use 4D data
     f_x = './data/xy/x_hz.pkl'  # 4D data for STCN models
 f_y = './data/xy/y_hz.pkl'
 
 import torch
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = 12
-hidden_size = 24 # 32
+hidden_size = 32 # 32
 output_size = 1
 num_layers = 4
 levels = 4
 kernel_size = 4
-dropout = 0.3 # 0.25
+dropout = 0.25 # 0.25
 in_channels = 1  ## 输入数据的通道数，选择的相关站点数18
 
-batch_size = 32
+batch_size = 64
 lr = 5e-4 # 1e-3
-n_epochs = 50  
+n_epochs = 100 
 
 # 学习率调度参数
 lr_scheduler = True
@@ -35,7 +35,6 @@ min_lr = 1e-5   # 最小学习率
 early_stopping = True
 es_patience = 10  # 10个epoch没有改善就停止训练
 model_save_pth = './models/model_{}.pth'.format(model_name)
-
 
 def print_params():
     print('\n------ Parameters ------')

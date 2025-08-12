@@ -85,7 +85,7 @@ def main():
     print('Using features:', feat_names)
     
     # 序列参数
-    x_length = 24  # time_step 24小时历史数据 
+    x_length = 168  # time_step 24小时历史数据 
     y_length = 1   # 预测1小时
     y_step = 1     # 预测步长
     

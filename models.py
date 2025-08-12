@@ -97,6 +97,36 @@ class TCN(nn.Module):
         return pred
 
 
+class TCN_Attention(nn.Module):
+    def __init__(self, input_size, output_size, num_channels, kernel_size, dropout):
+        super(TCN_Attention, self).__init__()
+        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout=dropout)
+        
+        # 简单的时间注意力机制
+        self.attention = nn.Sequential(
+            nn.Linear(num_channels[-1], num_channels[-1] // 2),
+            nn.ReLU(),
+            nn.Linear(num_channels[-1] // 2, 1),
+            nn.Sigmoid()
+        )
+        
+        self.linear = nn.Linear(num_channels[-1], output_size)
+
+    def forward(self, x):
+        # TCN处理
+        output = self.tcn(x.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 时间注意力
+        attention_weights = self.attention(output)  # [batch, seq_len, 1]
+        attended_output = output * attention_weights  # [batch, seq_len, features]
+        
+        # 使用最后一个时间步
+        last_step = attended_output[:, -1, :]
+        pred = self.linear(last_step)
+        
+        return pred
+
+
 class Chomp1d(nn.Module):
     def __init__(self, chomp_size):
         super(Chomp1d, self).__init__()
