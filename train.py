@@ -1,6 +1,7 @@
 # coding:utf-8
 
 import sys
+import time
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,6 +14,9 @@ import config as cfg
 
 
 def train(net, train_loader, valid_loader, test_loader, plot=False):
+    # 记录训练开始时间
+    start_time = time.time()
+    
     rmse_train_list = []
     rmse_valid_list = []
     mae_valid_list = []
@@ -133,6 +137,14 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             # 原有的模型保存逻辑
             if rmse_valid_cpu == np.min(rmse_valid_list):
                 torch.save(net.state_dict(), cfg.model_save_pth)
+    
+    # 计算训练总耗时
+    end_time = time.time()
+    total_time = end_time - start_time
+    hours = int(total_time // 3600)
+    minutes = int((total_time % 3600) // 60)
+    seconds = total_time % 60
+    print(f"Training completed in {hours}h {minutes}m {seconds:.2f}s")
 
 
 def main():
