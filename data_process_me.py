@@ -86,19 +86,17 @@ def main():
     
     # 序列参数
     x_length = 168  # time_step 24小时历史数据 
-    y_length = 1   # 预测1小时
+    y_length = 24   # 预测1小时
     y_step = 1     # 预测步长
+    max_start = len(df_processed) - x_length - y_length   # 最后一条样本起始索引
     
     # 生成训练数据
     x = []
     y = []
     
-    for start_id in range(0, len(df_processed) - x_length - y_length + 1, y_length):
-        # 提取特征数据
+    for start_id in range(0, max_start + 1, y_step):
         x_data = np.array(df_processed[feat_names].iloc[start_id: start_id + x_length])
-        
-        # 提取目标值（PM2.5）
-        y_target = np.array(df_processed['PM2.5'].iloc[start_id + x_length: start_id + x_length + y_length])
+        y_target = np.array(df_processed['PM2.5'].iloc[start_id + x_length + y_step - 1: start_id + x_length + y_step + y_length - 1])
         
         # 检查是否有NaN值
         if np.isnan(x_data).any() or np.isnan(y_target).any():
