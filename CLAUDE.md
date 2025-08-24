@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### 激活conda环境
 ```bash
-conda activate AQI-Pre
+conda activate aqi-pre
 ```
 
 ### Data Processing

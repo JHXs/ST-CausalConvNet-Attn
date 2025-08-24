@@ -15,13 +15,13 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = 12
 hidden_size = 32 # 32
 output_size = 1
-num_layers = 4
-levels = 4
-kernel_size = 4
-dropout = 0.25 # 0.25
+num_layers = 4 # 4
+levels = 4 # 4
+kernel_size = 4 # 4
+dropout = 0.785 # 0.25
 in_channels = 1  ## 输入数据的通道数，选择的相关站点数18
 
-batch_size = 64
+batch_size = 32 
 lr = 5e-4 # 1e-3
 n_epochs = 100 
 
