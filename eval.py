@@ -95,6 +95,10 @@ def main():
     elif cfg.model_name == 'STCN_Attention':
         net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                           num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'STCN_LogLinearAttention':
+        net = models.STCN_LogLinearAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                                             num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
+                                             attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, device=cfg.device)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 
     # Load model parameters

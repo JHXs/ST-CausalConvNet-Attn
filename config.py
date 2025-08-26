@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'TCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention']
+model_name = 'STCN_LogLinearAttention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'STCN_LogLinearAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
     f_x = './data/xy/x_hz_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
@@ -15,11 +15,15 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = 12
 hidden_size = 32 # 32
 output_size = 1
-num_layers = 4 # 4
+num_layers = 8 # 4
 levels = 4 # 4
 kernel_size = 4 # 4
-dropout = 0.785 # 0.25
+dropout = 0.25 # 0.25
 in_channels = 1  ## 输入数据的通道数，选择的相关站点数18
+
+# Log-linear attention 特定参数
+attention_heads = 16  # 注意力头数
+use_rotary = True    # 是否使用位置编码
 
 batch_size = 32 
 lr = 5e-4 # 1e-3
@@ -50,6 +54,8 @@ def print_params():
     print('kernel_size (for TCN) = {}'.format(kernel_size))
     print('dropout (for TCN) = {}'.format(dropout))
     print('in_channels (for STCN) = {}'.format(in_channels))
+    print('attention_heads (for LogLinearAttention) = {}'.format(attention_heads))
+    print('use_rotary (for LogLinearAttention) = {}'.format(use_rotary))
     print('batch_size = {}'.format(batch_size))
     print('lr = {}'.format(lr))
     print('n_epochs = {}'.format(n_epochs))

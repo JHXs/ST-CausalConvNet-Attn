@@ -265,3 +265,140 @@ class STCN_Attention(nn.Module):
         pred = self.linear(last_step)
         
         return pred
+
+
+class STCN_LogLinearAttention(nn.Module):
+    """
+    使用log-linear attention的STCN模型
+    替换原有STCN_Attention中的简单时间注意力
+    """
+    
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout, 
+                 attention_heads=8, use_rotary=True, device=None):
+        super(STCN_LogLinearAttention, self).__init__()
+        self.device = device if device is not None else 'cpu'
+        
+        # 原始STCN组件
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=(1, 1)),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 1, kernel_size=(1, 1)),
+            nn.BatchNorm2d(1),
+            nn.ReLU()
+        ).to(self.device)
+        
+        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
+        self.tcn.to(self.device)
+        
+        # Log-linear attention 替换简单时间注意力
+        attention_embed_dim = num_channels[-1]
+        self.temporal_attention = LogLinearAttention(
+            embed_dim=attention_embed_dim,
+            num_heads=attention_heads,
+            dropout=dropout,
+            use_rotary=use_rotary,
+            device=self.device
+        )
+        
+        # 输出层
+        self.linear = nn.Linear(num_channels[-1], output_size).to(self.device)
+        
+        # 层归一化
+        self.layer_norm = nn.LayerNorm(num_channels[-1]).to(self.device)
+
+    def forward(self, x):
+        # 确保输入在正确的设备上
+        x = x.to(self.device)
+        
+        # 原始STCN处理
+        conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
+        output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 确保输出在正确的设备上
+        output = output.to(self.device)
+        
+        # Log-linear attention处理
+        attended_output = self.temporal_attention(output)  # [batch, seq_len, features]
+        
+        # 残差连接：保持原始特征
+        residual = output
+        
+        # 残差连接 + 层归一化
+        final_features = self.layer_norm(attended_output + residual)
+        
+        # 使用最后一个时间步进行预测
+        last_step = final_features[:, -1, :]  # [batch, features]
+        pred = self.linear(last_step)
+        
+        return pred
+
+
+class LogLinearAttention(nn.Module):
+    """
+    Log-linear attention mechanism for temporal sequences
+    替代简单的时间注意力机制
+    """
+    
+    def __init__(self, embed_dim, num_heads=8, dropout=0.1, use_rotary=True, device=None):
+        super(LogLinearAttention, self).__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.head_dim = embed_dim // num_heads
+        self.dropout = dropout
+        self.use_rotary = use_rotary
+        self.device = device if device is not None else 'cpu'
+        
+        # 线性变换
+        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim)
+        self.v_proj = nn.Linear(embed_dim, embed_dim)
+        
+        # Dropout
+        self.dropout_layer = nn.Dropout(dropout)
+        
+    def forward(self, x, attention_mask=None):
+        """
+        Args:
+            x: [batch_size, seq_len, embed_dim]
+            attention_mask: [batch_size, seq_len] (可选)
+        """
+        # 确保输入在正确的设备上
+        x = x.to(self.device)
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(self.device)
+        
+        batch_size, seq_len, _ = x.shape
+        
+        # 线性变换 - 确保权重在正确的设备上
+        self.q_proj = self.q_proj.to(self.device)
+        self.k_proj = self.k_proj.to(self.device)
+        self.v_proj = self.v_proj.to(self.device)
+        
+        q = self.q_proj(x)  # [batch_size, seq_len, embed_dim]
+        k = self.k_proj(x)  # [batch_size, seq_len, embed_dim]
+        v = self.v_proj(x)  # [batch_size, seq_len, embed_dim]
+        
+        # 计算注意力分数
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
+        
+        # 应用attention mask
+        if attention_mask is not None:
+            # 扩展mask维度
+            attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+            scores = scores.masked_fill(attention_mask == 0, float('-inf'))
+        
+        # Softmax
+        attn_weights = F.softmax(scores, dim=-1)
+        attn_weights = self.dropout_layer(attn_weights)
+        
+        # 应用注意力权重
+        output = torch.matmul(attn_weights, v)
+        
+        return output
+
+
+def get_param_number(net):
+    total_num = sum(p.numel() for p in net.parameters())
+    trainable_num = sum(p.numel() for p in net.parameters() if p.requires_grad)
+    return total_num, trainable_num
