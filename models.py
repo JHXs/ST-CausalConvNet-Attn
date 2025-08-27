@@ -274,9 +274,8 @@ class STCN_LogLinearAttention(nn.Module):
     """
     
     def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout, 
-                 attention_heads=8, use_rotary=True, device=None):
+                 attention_heads=8, use_rotary=True):
         super(STCN_LogLinearAttention, self).__init__()
-        self.device = device if device is not None else 'cpu'
         
         # 原始STCN组件
         self.conv = nn.Sequential(
@@ -286,10 +285,9 @@ class STCN_LogLinearAttention(nn.Module):
             nn.Conv2d(64, 1, kernel_size=(1, 1)),
             nn.BatchNorm2d(1),
             nn.ReLU()
-        ).to(self.device)
+        )
         
         self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
-        self.tcn.to(self.device)
         
         # Log-linear attention 替换简单时间注意力
         attention_embed_dim = num_channels[-1]
@@ -297,26 +295,19 @@ class STCN_LogLinearAttention(nn.Module):
             embed_dim=attention_embed_dim,
             num_heads=attention_heads,
             dropout=dropout,
-            use_rotary=use_rotary,
-            device=self.device
+            use_rotary=use_rotary
         )
         
         # 输出层
-        self.linear = nn.Linear(num_channels[-1], output_size).to(self.device)
+        self.linear = nn.Linear(num_channels[-1], output_size)
         
         # 层归一化
-        self.layer_norm = nn.LayerNorm(num_channels[-1]).to(self.device)
+        self.layer_norm = nn.LayerNorm(num_channels[-1])
 
     def forward(self, x):
-        # 确保输入在正确的设备上
-        x = x.to(self.device)
-        
         # 原始STCN处理
         conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
         output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
-        
-        # 确保输出在正确的设备上
-        output = output.to(self.device)
         
         # Log-linear attention处理
         attended_output = self.temporal_attention(output)  # [batch, seq_len, features]
@@ -332,6 +323,11 @@ class STCN_LogLinearAttention(nn.Module):
         pred = self.linear(last_step)
         
         return pred
+    
+    def _apply(self, fn):
+        # 确保所有子模块都应用相同的设备变换
+        super()._apply(fn)
+        return self
 
 
 class LogLinearAttention(nn.Module):
@@ -340,14 +336,13 @@ class LogLinearAttention(nn.Module):
     替代简单的时间注意力机制
     """
     
-    def __init__(self, embed_dim, num_heads=8, dropout=0.1, use_rotary=True, device=None):
+    def __init__(self, embed_dim, num_heads=8, dropout=0.1, use_rotary=True):
         super(LogLinearAttention, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads
         self.dropout = dropout
         self.use_rotary = use_rotary
-        self.device = device if device is not None else 'cpu'
         
         # 线性变换
         self.q_proj = nn.Linear(embed_dim, embed_dim)
@@ -363,18 +358,9 @@ class LogLinearAttention(nn.Module):
             x: [batch_size, seq_len, embed_dim]
             attention_mask: [batch_size, seq_len] (可选)
         """
-        # 确保输入在正确的设备上
-        x = x.to(self.device)
-        if attention_mask is not None:
-            attention_mask = attention_mask.to(self.device)
-        
         batch_size, seq_len, _ = x.shape
         
-        # 线性变换 - 确保权重在正确的设备上
-        self.q_proj = self.q_proj.to(self.device)
-        self.k_proj = self.k_proj.to(self.device)
-        self.v_proj = self.v_proj.to(self.device)
-        
+        # 线性变换
         q = self.q_proj(x)  # [batch_size, seq_len, embed_dim]
         k = self.k_proj(x)  # [batch_size, seq_len, embed_dim]
         v = self.v_proj(x)  # [batch_size, seq_len, embed_dim]
