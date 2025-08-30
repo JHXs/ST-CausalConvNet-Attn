@@ -20,6 +20,7 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     rmse_train_list = []
     rmse_valid_list = []
     mae_valid_list = []
+    train_losses = []
     optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
     criterion = nn.MSELoss().to(cfg.device)
     h_state = None
@@ -61,6 +62,8 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             with torch.no_grad():
                 rmse_train_batch = torch.sqrt(loss)
                 rmse_train += rmse_train_batch
+            
+            train_losses.append(loss.item())
             
             if batch_idx % round(len(train_loader) / 5) == 0:
                 progress = batch_idx / len(train_loader)
@@ -145,6 +148,9 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     minutes = int((total_time % 3600) // 60)
     seconds = total_time % 60
     print(f"Training completed in {hours}h {minutes}m {seconds:.2f}s")
+    
+    if plot:
+        utils.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses)
 
 
 def main():
@@ -185,7 +191,7 @@ def main():
 
     # Training
     print('\nStart training...\n')
-    train(net, train_loader, valid_loader, test_loader)
+    train(net, train_loader, valid_loader, test_loader, cfg.plt)
 
 
 if __name__ == '__main__':

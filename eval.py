@@ -61,10 +61,21 @@ def eval(net, test_loader, plot=False):
     y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
     y_valid_true = torch.cat(y_valid_true).numpy().reshape((-1, 1))
     r2_valid = metrics.r2_score(y_valid_true, y_valid_pred_final)
-
-    print('\nRMSE_valid: {:.4f}  MAE_valid: {:.4f}  R2_valid: {:.4f}\n'.format(
+    
+    # Calculate advanced metrics
+    advanced_metrics = utils.calculate_advanced_metrics(y_valid_true, y_valid_pred_final)
+    
+    print('\nTest Set Metrics:')
+    print('RMSE_valid: {:.4f}  MAE_valid: {:.4f}  R2_valid: {:.4f}'.format(
         rmse_valid.item(), mae_valid.item(), r2_valid))
-    return rmse_valid.item(), mae_valid.item(), r2_valid
+    print('MAPE: {:.4f}%  SMAPE: {:.4f}%  MASE: {:.4f}'.format(
+        advanced_metrics['MAPE'], advanced_metrics['SMAPE'], advanced_metrics['MASE']))
+    print('Coverage (95%): {:.2f}%\n'.format(advanced_metrics['Coverage']))
+    
+    if plot:
+        utils.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'])
+    
+    return rmse_valid.item(), mae_valid.item(), r2_valid, advanced_metrics['MAPE'], advanced_metrics['SMAPE'], advanced_metrics['MASE'], advanced_metrics['Coverage']
 
 
 def main():
@@ -107,7 +118,7 @@ def main():
     print(utils.get_param_number(net=net))
 
     # Evaluation
-    eval(net, test_loader)
+    eval(net, test_loader, cfg.plt)
 
 
 if __name__ == '__main__':
