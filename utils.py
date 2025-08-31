@@ -328,29 +328,31 @@ def generate_training_report(cfg, model, train_loader, valid_loader, test_loader
         report_type = "evaluation"
         prefix = "evaluation"
     
-    report_file = os.path.join(report_path, '{}_report_{}_{}.txt'.format(prefix, model_name, timestamp))
+    # Create date-based directory (MMDD format)
+    date_str = datetime.now().strftime('%m%d')
+    date_dir = os.path.join(report_path, date_str)
+    os.makedirs(date_dir, exist_ok=True)
+    
+    report_file = os.path.join(date_dir, '{}_report_{}_{}.txt'.format(prefix, model_name, timestamp))
     
     # Calculate training time info (approximate)
     avg_batch_time = np.mean(train_losses) if train_losses else 0
     estimated_total_batches = total_epochs * len(train_loader) if train_loader else 0
     
     # Generate report content
-    report_content = """
+    if report_type == "training":
+        # Training mode - comprehensive report
+        report_content = """
 =======================================================
-{}
-{}
+TRAINING VALIDATION REPORT
+==========================
 =======================================================
 
 Model: {}
 Generated: {}
 =======================================================
 
-""".format(report_type.upper() + " VALIDATION REPORT", "="*len(report_type.upper() + " VALIDATION REPORT"),
-           model_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    
-    if total_epochs > 0:
-        # Training mode - comprehensive report
-        report_content += """1. MODEL CONFIGURATION
+1. MODEL CONFIGURATION
 -------------------------------------------------------
 Input Size: {}
 Hidden Size: {}
@@ -365,7 +367,8 @@ Number of Epochs: {}
 Early Stopping: {} (Patience: {})
 Learning Rate Scheduler: {}
 
-""".format(cfg.input_size, cfg.hidden_size, cfg.output_size, cfg.num_layers, 
+""".format(model_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+               cfg.input_size, cfg.hidden_size, cfg.output_size, cfg.num_layers, 
                cfg.levels, cfg.kernel_size, cfg.dropout, cfg.batch_size, cfg.lr,
                total_epochs, cfg.early_stopping, cfg.es_patience, cfg.lr_scheduler)
         
@@ -392,7 +395,7 @@ Training Progress Summary:
 """.format(best_epoch, best_rmse, final_rmse_train, final_mae_valid, 
                estimated_total_batches, avg_batch_time,
                rmse_train_list[0] - rmse_train_list[-1], rmse_valid_list[0] - rmse_valid_list[-1])
-    
+        
         # Add model statistics (for training mode)
         report_content += """3. MODEL STATISTICS
 -------------------------------------------------------
@@ -408,54 +411,8 @@ Non-trainable Parameters: {:,}
 Model Size: {:.2f} MB (assuming 4 bytes per parameter)
 
 """.format(total_params, trainable_params, total_params - trainable_params, model_size_mb)
-    else:
-        # Evaluation mode - simplified focused report
-        report_content += """1. MODEL CONFIGURATION
--------------------------------------------------------
-Input Size: {}
-Hidden Size: {}
-Output Size: {}
-Batch Size: {}
-Learning Rate: {}
-
-""".format(cfg.input_size, cfg.hidden_size, cfg.output_size, cfg.batch_size, cfg.lr)
-        
-        # Add model statistics (for evaluation mode)
-        report_content += """2. MODEL STATISTICS
--------------------------------------------------------
-"""
-        
-        # Get model parameters (if model is provided)
-        if model is not None:
-            total_params, trainable_params = get_param_number(model)
-            model_size_mb = (total_params * 4.0) / (1024.0 * 1024.0)
-            report_content += """Total Parameters: {:,}
-Trainable Parameters: {:,}
-Non-trainable Parameters: {:,}
-Model Size: {:.2f} MB (assuming 4 bytes per parameter)
-
-""".format(total_params, trainable_params, total_params - trainable_params, model_size_mb)
-        else:
-            report_content += "No model information available\n\n"
       
-    # Add evaluation results (always relevant for validation reports)
-    if eval_results:
-        eval_section_num = "3" if total_epochs == 0 else "4"
-        report_content += """{}. TEST SET EVALUATION RESULTS
--------------------------------------------------------
-RMSE: {:.6f}
-MAE: {:.6f}
-R²: {:.6f}
-MAPE: {:.6f}%
-SMAPE: {:.6f}%
-MASE: {:.6f}
-Coverage (95%): {:.2f}%
-
-""".format(eval_section_num, eval_results[0], eval_results[1], eval_results[2], 
-           eval_results[3], eval_results[4], eval_results[5], eval_results[6])
-    
-    # Add detailed metrics section (only for training mode)
-    if total_epochs > 0:
+        # Add detailed metrics section (only for training mode)
         report_content += """4. DETAILED METRICS BY EPOCH
 -------------------------------------------------------
 Epoch      Train RMSE   Valid RMSE   Valid MAE   Improvement
@@ -494,18 +451,10 @@ Validation MAE Statistics:
   - Max: {:.6f}
 
 """.format(np.mean(rmse_train_list), np.std(rmse_train_list), np.min(rmse_train_list), np.max(rmse_train_list),
-                   np.mean(rmse_valid_list), np.std(rmse_valid_list), np.min(rmse_valid_list), np.max(rmse_valid_list),
-                   np.mean(mae_valid_list), np.std(mae_valid_list), np.min(mae_valid_list), np.max(mae_valid_list))
-    else:
-        # Evaluation mode - simplified summary
-        report_content += """4. SUMMARY
--------------------------------------------------------
-Model evaluated successfully. Key metrics shown above in Test Set Evaluation Results.
-
-"""
-    
-    # Add convergence analysis (only for training mode)
-    if total_epochs > 0:
+               np.mean(rmse_valid_list), np.std(rmse_valid_list), np.min(rmse_valid_list), np.max(rmse_valid_list),
+               np.mean(mae_valid_list), np.std(mae_valid_list), np.min(mae_valid_list), np.max(mae_valid_list))
+        
+        # Add convergence analysis (only for training mode)
         report_content += """6. CONVERGENCE ANALYSIS
 -------------------------------------------------------
 """
@@ -524,35 +473,90 @@ Model evaluated successfully. Key metrics shown above in Test Set Evaluation Res
 Last 10 epochs RMSE trend: {:.8f} (slope)
 Final 10 epochs RMSE range: {:.6f}
 
-7. RECOMMENDATIONS
+7. FINAL TRAINING METRICS
 -------------------------------------------------------
-""".format(convergence_status, convergence_slope, np.max(last_10_rmse) - np.min(last_10_rmse))
-        
-        # Generate recommendations (only for training mode)
-        if best_epoch == total_epochs and cfg.early_stopping:
-            report_content += "- Model stopped early due to no improvement. Consider increasing patience or adjusting learning rate.\n"
-        
-        if len(rmse_valid_list) >= 5 and np.std(rmse_valid_list[-5:]) < 1e-5:
-            report_content += "- Model appears to have converged (stable validation loss).\n"
-        
-        if final_rmse_train < best_rmse * 1.1:
-            report_content += "- Small gap between training and validation performance indicates good generalization.\n"
-        else:
-            report_content += "- Large gap between training and validation performance may indicate overfitting.\n"
-        
-        if eval_results and eval_results[6] < 95:  # Coverage < 95%
-            report_content += "- Prediction interval coverage is low. Consider recalibrating uncertainty estimates.\n"
-    else:
-        # Evaluation mode - simplified convergence and recommendations
-        report_content += """5. CONVERGENCE ANALYSIS
--------------------------------------------------------
-Convergence Status: Evaluation mode - No training data available
+Final Training RMSE: {:.6f}
+Final Validation RMSE: {:.6f}
+Final Validation MAE: {:.6f}
+Best Validation RMSE: {:.6f} at epoch {}
+Total Training Time Improvement: {:.6f}
+Training Efficiency: {:.6f} RMSE improvement per epoch
 
-6. RECOMMENDATIONS
+""".format(convergence_status, convergence_slope, np.max(last_10_rmse) - np.min(last_10_rmse),
+               rmse_train_list[-1], rmse_valid_list[-1], mae_valid_list[-1], 
+               best_rmse, best_epoch,
+               rmse_train_list[0] - rmse_train_list[-1],
+               (rmse_train_list[0] - rmse_train_list[-1]) / total_epochs)
+        
+        # Add evaluation results if available
+        if eval_results:
+            report_content += """8. TEST SET EVALUATION RESULTS
 -------------------------------------------------------
-- Evaluation mode: No training data available for convergence analysis.
-"""
+RMSE: {:.6f}
+MAE: {:.6f}
+R²: {:.6f}
+MAPE: {:.6f}%
+SMAPE: {:.6f}%
+MASE: {:.6f}
+Coverage (95%): {:.2f}%
+
+""".format(eval_results[0], eval_results[1], eval_results[2], 
+               eval_results[3], eval_results[4], eval_results[5], eval_results[6])
+    else:
+        # Evaluation mode - focused report with only essential sections
+        report_content = """
+=======================================================
+EVALUATION REPORT
+=================
+=======================================================
+
+Model: {}
+Generated: {}
+=======================================================
+
+1. MODEL CONFIGURATION
+-------------------------------------------------------
+Input Size: {}
+Hidden Size: {}
+Output Size: {}
+Batch Size: {}
+Learning Rate: {}
+
+""".format(model_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+               cfg.input_size, cfg.hidden_size, cfg.output_size, cfg.batch_size, cfg.lr)
+        
+        # Add model statistics (only for training mode when model is available)
+        if model is not None and report_type == "training":
+            total_params, trainable_params = get_param_number(model)
+            model_size_mb = (total_params * 4.0) / (1024.0 * 1024.0)
+            report_content += """2. MODEL STATISTICS
+-------------------------------------------------------
+Total Parameters: {:,}
+Trainable Parameters: {:,}
+Non-trainable Parameters: {:,}
+Model Size: {:.2f} MB (assuming 4 bytes per parameter)
+
+""".format(total_params, trainable_params, total_params - trainable_params, model_size_mb)
+        else:
+            # Skip model statistics section for evaluation mode
+            pass
+      
+        # Add evaluation results (always relevant for validation reports)
+        if eval_results:
+            report_content += """2. TEST SET EVALUATION RESULTS
+-------------------------------------------------------
+RMSE: {:.6f}
+MAE: {:.6f}
+R²: {:.6f}
+MAPE: {:.6f}%
+SMAPE: {:.6f}%
+MASE: {:.6f}
+Coverage (95%): {:.2f}%
+
+""".format(eval_results[0], eval_results[1], eval_results[2], 
+               eval_results[3], eval_results[4], eval_results[5], eval_results[6])
     
+    # End of report
     report_content += """
 =======================================================
 END OF REPORT - Model: {}
