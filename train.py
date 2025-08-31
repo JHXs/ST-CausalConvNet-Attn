@@ -149,8 +149,30 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     seconds = total_time % 60
     print(f"Training completed in {hours}h {minutes}m {seconds:.2f}s")
     
+    # Calculate statistics for comprehensive report
+    best_epoch = np.argmin(rmse_valid_list) + 1 if rmse_valid_list else 0
+    avg_batch_time = total_time / len(train_loader) / cfg.n_epochs if len(train_losses) > 0 else 0
+    estimated_total_batches = len(train_loader) * cfg.n_epochs
+    
     if plot:
         utils.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses)
+    
+    # Generate training report
+    if cfg.generate_report:
+        print("\nGenerating training report...")
+        utils.generate_training_report(
+            cfg=cfg,
+            model=net,
+            train_loader=train_loader,
+            valid_loader=valid_loader,
+            test_loader=test_loader,
+            rmse_train_list=rmse_train_list,
+            rmse_valid_list=rmse_valid_list,
+            mae_valid_list=mae_valid_list,
+            train_losses=train_losses
+        )
+    else:
+        print("\nReport generation skipped (generate_report=False)")
 
 
 def main():

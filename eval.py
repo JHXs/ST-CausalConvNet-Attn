@@ -75,6 +75,28 @@ def eval(net, test_loader, plot=False):
     if plot:
         utils.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'])
     
+    # Generate evaluation report
+    if cfg.generate_report:
+        print("\nGenerating evaluation report...")
+        eval_results = [rmse_valid.item(), mae_valid.item(), r2_valid, 
+                        advanced_metrics['MAPE'], advanced_metrics['SMAPE'], 
+                        advanced_metrics['MASE'], advanced_metrics['Coverage']]
+        
+        utils.generate_training_report(
+            cfg=cfg,
+            model=None,
+            train_loader=None,
+            valid_loader=None,
+            test_loader=test_loader,
+            rmse_train_list=None,
+            rmse_valid_list=None,
+            mae_valid_list=None,
+            train_losses=None,
+            eval_results=eval_results
+        )
+    else:
+        print("\nReport generation skipped (generate_report=False)")
+    
     return rmse_valid.item(), mae_valid.item(), r2_valid, advanced_metrics['MAPE'], advanced_metrics['SMAPE'], advanced_metrics['MASE'], advanced_metrics['Coverage']
 
 
