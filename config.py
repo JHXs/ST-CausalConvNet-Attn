@@ -43,6 +43,9 @@ model_save_pth = './models/model_{}.pth'.format(model_name)
 # 可视化
 plt = False # True
 
+# 报告生成
+generate_report = True  # 是否生成训练验证报告
+
 def print_params():
     print('\n------ Parameters ------')
     print('rand_seed = {}'.format(rand_seed))
