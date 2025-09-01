@@ -155,7 +155,8 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     estimated_total_batches = len(train_loader) * cfg.n_epochs
     
     if plot:
-        utils.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses)
+        plots_file = utils.get_plot_directory('training', cfg.model_name)
+        utils.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, plots_file)
     
     # Generate training report
     if cfg.generate_report:

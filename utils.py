@@ -133,78 +133,6 @@ def replicate_to_hourly(df):
     return hourly_df
 
 
-def create_evaluation_plots(y_true, y_pred, residuals=None, save_path=None):
-    """Create comprehensive evaluation plots"""
-    if residuals is None:
-        residuals = y_true - y_pred
-    
-    # Create figure with subplots
-    fig = plt.figure(figsize=(20, 12))
-    
-    # 1. Predicted vs True scatter plot
-    ax1 = plt.subplot(2, 3, 1)
-    plt.scatter(y_true, y_pred, alpha=0.6, s=20)
-    min_val = min(y_true.min(), y_pred.min())
-    max_val = max(y_true.max(), y_pred.max())
-    plt.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2)
-    plt.xlabel('True Values')
-    plt.ylabel('Predicted Values')
-    plt.title('Predicted vs True Values')
-    plt.grid(True, alpha=0.3)
-    
-    # 2. Time series comparison (first 200 points)
-    ax2 = plt.subplot(2, 3, 2)
-    time_points = range(min(200, len(y_true)))
-    plt.plot(time_points, y_true[:200], 'b-', label='True', alpha=0.7)
-    plt.plot(time_points, y_pred[:200], 'r-', label='Predicted', alpha=0.7)
-    plt.xlabel('Time Steps')
-    plt.ylabel('Values')
-    plt.title('Time Series Comparison (First 200 points)')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    
-    # 3. Residual histogram
-    ax3 = plt.subplot(2, 3, 3)
-    plt.hist(residuals.flatten(), bins=50, density=True, alpha=0.7, color='green')
-    plt.xlabel('Residuals')
-    plt.ylabel('Density')
-    plt.title('Residual Distribution')
-    plt.grid(True, alpha=0.3)
-    
-    # 4. Q-Q plot
-    ax4 = plt.subplot(2, 3, 4)
-    stats.probplot(residuals.flatten(), dist="norm", plot=plt)
-    plt.title('Q-Q Plot')
-    plt.grid(True, alpha=0.3)
-    
-    # 5. Residuals vs Predicted
-    ax5 = plt.subplot(2, 3, 5)
-    plt.scatter(y_pred, residuals, alpha=0.6, s=20)
-    plt.axhline(y=0, color='r', linestyle='--')
-    plt.xlabel('Predicted Values')
-    plt.ylabel('Residuals')
-    plt.title('Residuals vs Predicted Values')
-    plt.grid(True, alpha=0.3)
-    
-    # 6. Error distribution over time
-    ax6 = plt.subplot(2, 3, 6)
-    absolute_errors = np.abs(residuals.flatten())
-    time_points = range(min(200, len(absolute_errors)))
-    plt.plot(time_points, absolute_errors[:200], 'purple', alpha=0.7)
-    plt.xlabel('Time Steps')
-    plt.ylabel('Absolute Error')
-    plt.title('Absolute Error Over Time (First 200 points)')
-    plt.grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print('Plots saved to {}'.format(save_path))
-    else:
-        plt.show()
-
-
 def calculate_advanced_metrics(y_true, y_pred):
     """Calculate advanced evaluation metrics"""
     # MAPE
@@ -235,354 +163,476 @@ def calculate_advanced_metrics(y_true, y_pred):
         'Residuals': residuals
     }
 
-
-def create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, save_path=None):
-    """Create training progress plots"""
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+def create_evaluation_plots(y_true, y_pred, residuals=None, save_path=None):
+    """Create comprehensive evaluation plots"""
+    if residuals is None:
+        residuals = y_true - y_pred
     
-    # 1. Training loss per batch
-    ax1 = axes[0, 0]
-    ax1.plot(train_losses, alpha=0.7, color='blue')
-    ax1.set_xlabel('Batch')
-    ax1.set_ylabel('Loss')
-    ax1.set_title('Training Loss per Batch')
-    ax1.grid(True, alpha=0.3)
+    # Create figure with subplots
+    fig = plt.figure(figsize=(20, 12))
     
-    # 2. RMSE training and validation per epoch
-    ax2 = axes[0, 1]
-    epochs = range(1, len(rmse_train_list) + 1)
-    ax2.plot(epochs, rmse_train_list, 'b-', label='Train RMSE', alpha=0.7)
-    ax2.plot(epochs, rmse_valid_list, 'r-', label='Validation RMSE', alpha=0.7)
-    ax2.set_xlabel('Epoch')
-    ax2.set_ylabel('RMSE')
-    ax2.set_title('RMSE per Epoch')
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
-    
-    # 3. MAE validation per epoch
-    ax3 = axes[1, 0]
-    ax3.plot(epochs, mae_valid_list, 'g-', alpha=0.7)
-    ax3.set_xlabel('Epoch')
-    ax3.set_ylabel('MAE')
-    ax3.set_title('Validation MAE per Epoch')
-    ax3.grid(True, alpha=0.3)
-    
-    # 4. Loss distribution (final epoch losses)
-    ax4 = axes[1, 1]
-    if len(train_losses) > 0:
-        # Get recent losses for better visualization
-        recent_losses = train_losses[-1000:] if len(train_losses) > 1000 else train_losses
-        ax4.hist(recent_losses, bins=50, alpha=0.7, color='orange', density=True)
-        ax4.set_xlabel('Loss')
-        ax4.set_ylabel('Density')
-        ax4.set_title('Loss Distribution (Recent Batches)')
-        ax4.grid(True, alpha=0.3)
+    _create_scatter_plot(y_true, y_pred)
+    _create_time_series_plot(y_true[:200], y_pred[:200])
+    _create_residual_histogram(residuals)
+    _create_qq_plot(residuals)
+    _create_residual_vs_predicted(y_pred, residuals)
+    _create_error_over_time_plot(np.abs(residuals.flatten()))
     
     plt.tight_layout()
     
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print('Training plots saved to {}'.format(save_path))
+        print(f'Plots saved to {save_path}')
     else:
         plt.show()
+    plt.close(fig)
+
+
+def _create_scatter_plot(y_true, y_pred):
+    """Create predicted vs true scatter plot"""
+    plt.subplot(2, 3, 1)
+    plt.scatter(y_true, y_pred, alpha=0.6, s=20)
+    min_val = min(y_true.min(), y_pred.min())
+    max_val = max(y_true.max(), y_pred.max())
+    plt.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2)
+    plt.xlabel('True Values')
+    plt.ylabel('Predicted Values')
+    plt.title('Predicted vs True Values')
+    plt.grid(True, alpha=0.3)
+
+
+def _create_time_series_plot(y_true, y_pred):
+    """Create time series comparison plot"""
+    plt.subplot(2, 3, 2)
+    time_points = range(len(y_true))
+    plt.plot(time_points, y_true, 'b-', label='True', alpha=0.7)
+    plt.plot(time_points, y_pred, 'r-', label='Predicted', alpha=0.7)
+    plt.xlabel('Time Steps')
+    plt.ylabel('Values')
+    plt.title('Time Series Comparison')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+
+def _create_residual_histogram(residuals):
+    """Create residual distribution histogram"""
+    plt.subplot(2, 3, 3)
+    plt.hist(residuals.flatten(), bins=50, density=True, alpha=0.7, color='green')
+    plt.xlabel('Residuals')
+    plt.ylabel('Density')
+    plt.title('Residual Distribution')
+    plt.grid(True, alpha=0.3)
+
+
+def _create_qq_plot(residuals):
+    """Create Q-Q plot for residuals"""
+    plt.subplot(2, 3, 4)
+    stats.probplot(residuals.flatten(), dist="norm", plot=plt)
+    plt.title('Q-Q Plot')
+    plt.grid(True, alpha=0.3)
+
+
+def _create_residual_vs_predicted(y_pred, residuals):
+    """Create residuals vs predicted values plot"""
+    plt.subplot(2, 3, 5)
+    plt.scatter(y_pred, residuals, alpha=0.6, s=20)
+    plt.axhline(y=0, color='r', linestyle='--')
+    plt.xlabel('Predicted Values')
+    plt.ylabel('Residuals')
+    plt.title('Residuals vs Predicted Values')
+    plt.grid(True, alpha=0.3)
+
+
+def _create_error_over_time_plot(absolute_errors):
+    """Create error distribution over time plot"""
+    plt.subplot(2, 3, 6)
+    time_points = range(min(200, len(absolute_errors)))
+    plt.plot(time_points, absolute_errors[:200], 'purple', alpha=0.7)
+    plt.xlabel('Time Steps')
+    plt.ylabel('Absolute Error')
+    plt.title('Absolute Error Over Time')
+    plt.grid(True, alpha=0.3)
+
+
+def create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, save_path=None):
+    """Create training progress plots"""
+    # Create figure with subplots
+    fig = plt.figure(figsize=(15, 10))
+    
+    _plot_training_loss(train_losses)
+    _plot_rmse_comparison(rmse_train_list, rmse_valid_list)
+    _plot_validation_mae(mae_valid_list)
+    _plot_loss_distribution(train_losses)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f'Training plots saved to {save_path}')
+    else:
+        plt.show()
+    plt.close(fig)
+
+
+def _plot_training_loss(train_losses):
+    """Create training loss per batch plot"""
+    plt.subplot(2, 2, 1)
+    plt.plot(train_losses, alpha=0.7, color='blue')
+    plt.xlabel('Batch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss per Batch')
+    plt.grid(True, alpha=0.3)
+
+
+def _plot_rmse_comparison(rmse_train_list, rmse_valid_list):
+    """Create RMSE training and validation comparison plot"""
+    plt.subplot(2, 2, 2)
+    epochs = range(1, len(rmse_train_list) + 1)
+    plt.plot(epochs, rmse_train_list, 'b-', label='Train RMSE', alpha=0.7)
+    plt.plot(epochs, rmse_valid_list, 'r-', label='Validation RMSE', alpha=0.7)
+    plt.xlabel('Epoch')
+    plt.ylabel('RMSE')
+    plt.title('RMSE per Epoch')
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+
+
+def _plot_validation_mae(mae_valid_list):
+    """Create validation MAE per epoch plot"""
+    plt.subplot(2, 2, 3)
+    epochs = range(1, len(mae_valid_list) + 1)
+    plt.plot(epochs, mae_valid_list, 'g-', alpha=0.7)
+    plt.xlabel('Epoch')
+    plt.ylabel('MAE')
+    plt.title('Validation MAE per Epoch')
+    plt.grid(True, alpha=0.3)
+
+
+def _plot_loss_distribution(train_losses):
+    """Create loss distribution plot"""
+    plt.subplot(2, 2, 4)
+    if len(train_losses) > 0:
+        recent_losses = train_losses[-1000:] if len(train_losses) > 1000 else train_losses
+        plt.hist(recent_losses, bins=50, alpha=0.7, color='orange', density=True)
+        plt.xlabel('Loss')
+        plt.ylabel('Density')
+        plt.title('Loss Distribution (Recent Batches)')
+        plt.grid(True, alpha=0.3)
 
 
 def generate_training_report(cfg, model, train_loader, valid_loader, test_loader, 
                            rmse_train_list, rmse_valid_list, mae_valid_list, train_losses,
                            eval_results=None, report_path=None):
     """Generate comprehensive training validation report"""
-    import os
     from datetime import datetime
     
-    # Create reports directory if it doesn't exist
-    if report_path is None:
-        report_path = './reports'
-    os.makedirs(report_path, exist_ok=True)
+    # Initialize report context
+    context = _initialize_report_context(cfg, model, rmse_train_list, rmse_valid_list, 
+                                       mae_valid_list, train_losses, train_loader, eval_results)
     
-    # Generate timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    model_name = cfg.model_name
+    # Generate report file path
+    report_file = _get_report_file_path(report_path, cfg.model_name, context['prefix'])
     
-    # Calculate basic statistics (handle empty lists for evaluation mode)
-    if rmse_valid_list and len(rmse_valid_list) > 0:
+    # Generate report content
+    report_content = _generate_report_content(cfg, context, eval_results)
+    
+    # Save and print report
+    _save_and_print_report(report_file, report_content, context)
+    
+    return report_file
+
+
+def _initialize_report_context(cfg, model, rmse_train_list, rmse_valid_list, mae_valid_list, 
+                              train_losses, train_loader, eval_results):
+    """Initialize report context with common data"""
+    from datetime import datetime
+    
+    # Determine mode and basic stats
+    is_training = bool(rmse_valid_list and len(rmse_valid_list) > 0)
+    
+    if is_training:
         best_epoch = np.argmin(rmse_valid_list) + 1
         best_rmse = rmse_valid_list[best_epoch - 1]
         final_rmse_train = rmse_train_list[-1] if rmse_train_list else 0
         final_mae_valid = mae_valid_list[-1] if mae_valid_list else 0
         total_epochs = len(rmse_train_list)
+        prefix = "training"
     else:
-        # For evaluation mode, use single metrics
         best_epoch = 1
         best_rmse = 0
         final_rmse_train = 0
         final_mae_valid = 0
         total_epochs = 0
-    
-    # Determine report type based on training mode
-    if rmse_valid_list and len(rmse_valid_list) > 0 and total_epochs > 0:
-        # Training mode
-        report_type = "training"
-        prefix = "training"
-    else:
-        # Evaluation mode
-        report_type = "evaluation"
         prefix = "evaluation"
     
-    # Create date-based directory (MMDD format)
+    # Get model statistics
+    model_stats = None
+    if model is not None:
+        total_params, trainable_params = get_param_number(model)
+        model_size_mb = (total_params * 4.0) / (1024.0 * 1024.0)
+        model_stats = {
+            'total_params': total_params,
+            'trainable_params': trainable_params,
+            'model_size_mb': model_size_mb
+        }
+    
+    return {
+        'date_str': datetime.now().strftime('%m%d'),
+        'time_str': datetime.now().strftime('%H%M%S'),
+        'model_name': cfg.model_name,
+        'is_training': is_training,
+        'best_epoch': best_epoch,
+        'best_rmse': best_rmse,
+        'final_rmse_train': final_rmse_train,
+        'final_mae_valid': final_mae_valid,
+        'total_epochs': total_epochs,
+        'prefix': prefix,
+        'model_stats': model_stats,
+        'avg_batch_time': np.mean(train_losses) if train_losses else 0,
+        'estimated_total_batches': total_epochs * len(train_loader) if train_loader else 0,
+        'rmse_train_list': rmse_train_list,
+        'rmse_valid_list': rmse_valid_list,
+        'mae_valid_list': mae_valid_list,
+        'eval_results': eval_results
+    }
+
+
+def _get_report_file_path(report_path, model_name, prefix):
+    """Generate report file path"""
+    import os
+    from datetime import datetime
+    
+    if report_path is None:
+        report_path = './reports'
+    os.makedirs(report_path, exist_ok=True)
+    
     date_str = datetime.now().strftime('%m%d')
+    time_str = datetime.now().strftime('%H%M%S')
     date_dir = os.path.join(report_path, date_str)
     os.makedirs(date_dir, exist_ok=True)
     
-    report_file = os.path.join(date_dir, '{}_report_{}_{}.txt'.format(prefix, model_name, timestamp))
+    return os.path.join(date_dir, f'{prefix}_{date_str}_{time_str}_{model_name}.txt')
+
+
+def _generate_report_content(cfg, context, eval_results):
+    """Generate report content based on context"""
+    content_parts = []
     
-    # Calculate training time info (approximate)
-    avg_batch_time = np.mean(train_losses) if train_losses else 0
-    estimated_total_batches = total_epochs * len(train_loader) if train_loader else 0
-    
-    # Generate report content
-    if report_type == "training":
-        # Training mode - comprehensive report
-        report_content = """
+    # Header
+    content_parts.append(f"""
 =======================================================
 TRAINING VALIDATION REPORT
 ==========================
 =======================================================
 
-Model: {}
-Generated: {}
+Model: {context['model_name']}
+Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 =======================================================
 
-1. MODEL CONFIGURATION
--------------------------------------------------------
-Input Size: {}
-Hidden Size: {}
-Output Size: {}
-Number of Layers: {}
-Levels (for TCN): {}
-Kernel Size (for TCN): {}
-Dropout (for TCN): {}
-Batch Size: {}
-Learning Rate: {}
-Number of Epochs: {}
-Early Stopping: {} (Patience: {})
-Learning Rate Scheduler: {}
+""")
+    
+    # Model configuration
+    content_parts.append(_generate_config_section(cfg))
+    
+    # Training performance (if applicable)
+    if context['is_training']:
+        content_parts.append(_generate_training_performance_section(cfg, context))
+        content_parts.append(_generate_model_statistics_section(context))
+        content_parts.append(_generate_detailed_metrics_section(context))
+        content_parts.append(_generate_convergence_analysis_section(context))
+    
+    # Evaluation results
+    if eval_results:
+        content_parts.append(_generate_evaluation_results_section(eval_results))
+    
+    # Footer
+    content_parts.append(f"""
+=======================================================
+END OF REPORT - Model: {context['model_name']}
+=======================================================
 
-""".format(model_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-               cfg.input_size, cfg.hidden_size, cfg.output_size, cfg.num_layers, 
-               cfg.levels, cfg.kernel_size, cfg.dropout, cfg.batch_size, cfg.lr,
-               total_epochs, cfg.early_stopping, cfg.es_patience, cfg.lr_scheduler)
-        
-        if cfg.model_name in ['STCN', 'STCN_Attention', 'STCN_LogLinearAttention']:
-            report_content += """Input Channels: {}
-Attention Heads: {}
-Use Rotary: {}
+""")
+    
+    return ''.join(content_parts)
 
-""".format(cfg.in_channels, cfg.attention_heads, cfg.use_rotary)
-        
-        report_content += """2. TRAINING PERFORMANCE
+
+def _generate_config_section(cfg):
+    """Generate model configuration section"""
+    config_str = f"""1. MODEL CONFIGURATION
 -------------------------------------------------------
-Best Epoch: {}
-Best Validation RMSE: {:.6f}
-Final Training RMSE: {:.6f}
-Final Validation MAE: {:.6f}
+Input Size: {cfg.input_size}
+Hidden Size: {cfg.hidden_size}
+Output Size: {cfg.output_size}
+Number of Layers: {cfg.num_layers}
+Levels (for TCN): {cfg.levels}
+Kernel Size (for TCN): {cfg.kernel_size}
+Dropout (for TCN): {cfg.dropout}
+Batch Size: {cfg.batch_size}
+Learning Rate: {cfg.lr}
+Number of Epochs: {cfg.n_epochs}
+Early Stopping: {cfg.early_stopping} (Patience: {cfg.es_patience})
+Learning Rate Scheduler: {cfg.lr_scheduler}
+
+"""
+    
+    if cfg.model_name in ['STCN', 'STCN_Attention', 'STCN_LogLinearAttention']:
+        config_str += f"""Input Channels: {cfg.in_channels}
+Attention Heads: {cfg.attention_heads}
+Use Rotary: {cfg.use_rotary}
+
+"""
+    
+    return config_str
+
+
+def _generate_training_performance_section(cfg, context):
+    """Generate training performance section"""
+    return f"""2. TRAINING PERFORMANCE
+-------------------------------------------------------
+Best Epoch: {context['best_epoch']}
+Best Validation RMSE: {context['best_rmse']:.6f}
+Final Training RMSE: {context['final_rmse_train']:.6f}
+Final Validation MAE: {context['final_mae_valid']:.6f}
 
 Training Progress Summary:
-- Total training batches processed: {}
-- Average batch loss: {:.6f}
-- Training improvement from first to last epoch: {:.6f}
-- Validation improvement from first to last epoch: {:.6f}
+- Total training batches processed: {context['estimated_total_batches']}
+- Average batch loss: {context['avg_batch_time']:.6f}
+- Training improvement from first to last epoch: {context['rmse_train_list'][0] - context['rmse_train_list'][-1]:.6f}
+- Validation improvement from first to last epoch: {context['rmse_valid_list'][0] - context['rmse_valid_list'][-1]:.6f}
 
-""".format(best_epoch, best_rmse, final_rmse_train, final_mae_valid, 
-               estimated_total_batches, avg_batch_time,
-               rmse_train_list[0] - rmse_train_list[-1], rmse_valid_list[0] - rmse_valid_list[-1])
-        
-        # Add model statistics (for training mode)
-        report_content += """3. MODEL STATISTICS
--------------------------------------------------------
 """
-        
-        # Get model parameters (if model is provided)
-        if model is not None:
-            total_params, trainable_params = get_param_number(model)
-            model_size_mb = (total_params * 4.0) / (1024.0 * 1024.0)
-            report_content += """Total Parameters: {:,}
-Trainable Parameters: {:,}
-Non-trainable Parameters: {:,}
-Model Size: {:.2f} MB (assuming 4 bytes per parameter)
 
-""".format(total_params, trainable_params, total_params - trainable_params, model_size_mb)
-      
-        # Add detailed metrics section (only for training mode)
-        report_content += """4. DETAILED METRICS BY EPOCH
+
+def _generate_model_statistics_section(context):
+    """Generate model statistics section"""
+    if context['model_stats'] is None:
+        return ""
+    
+    stats = context['model_stats']
+    return f"""3. MODEL STATISTICS
+-------------------------------------------------------
+Total Parameters: {stats['total_params']:,}
+Trainable Parameters: {stats['trainable_params']:,}
+Non-trainable Parameters: {stats['total_params'] - stats['trainable_params']:,}
+Model Size: {stats['model_size_mb']:.2f} MB (assuming 4 bytes per parameter)
+
+"""
+
+
+def _generate_detailed_metrics_section(context):
+    """Generate detailed metrics section"""
+    content = """4. DETAILED METRICS BY EPOCH
 -------------------------------------------------------
 Epoch      Train RMSE   Valid RMSE   Valid MAE   Improvement
 -------------------------------------------------------
 """
-        
-        for i in range(0, min(total_epochs, 10)):  # Show first 10 epochs
-            improvement = ""
-            if i > 0:
-                improvement = "{:+.6f}".format(rmse_valid_list[i-1] - rmse_valid_list[i])
-            report_content += "{:5d} {:12.6f} {:12.6f} {:12.6f} {:12}\n".format(
-                i+1, rmse_train_list[i], rmse_valid_list[i], mae_valid_list[i], improvement)
-        
-        if total_epochs > 10:
-            report_content += "... (showing first {} of {} epochs) ...\n".format(10, total_epochs)
-        
-        # Summary statistics (only for training mode)
-        report_content += """5. SUMMARY STATISTICS
+    
+    for i in range(0, min(context['total_epochs'], 10)):
+        improvement = ""
+        if i > 0:
+            improvement = f"{context['rmse_valid_list'][i-1] - context['rmse_valid_list'][i]:+6f}"
+        content += f"{i+1:5d} {context['rmse_train_list'][i]:12.6f} {context['rmse_valid_list'][i]:12.6f} {context['mae_valid_list'][i]:12.6f} {improvement:12}\n"
+    
+    if context['total_epochs'] > 10:
+        content += f"... (showing first 10 of {context['total_epochs']} epochs) ...\n"
+    
+    # Summary statistics
+    content += f"""
+5. SUMMARY STATISTICS
 -------------------------------------------------------
 Training RMSE Statistics:
-  - Mean: {:.6f}
-  - Std: {:.6f}
-  - Min: {:.6f}
-  - Max: {:.6f}
+  - Mean: {np.mean(context['rmse_train_list']):.6f}
+  - Std: {np.std(context['rmse_train_list']):.6f}
+  - Min: {np.min(context['rmse_train_list']):.6f}
+  - Max: {np.max(context['rmse_train_list']):.6f}
 
 Validation RMSE Statistics:
-  - Mean: {:.6f}
-  - Std: {:.6f}
-  - Min: {:.6f}
-  - Max: {:.6f}
+  - Mean: {np.mean(context['rmse_valid_list']):.6f}
+  - Std: {np.std(context['rmse_valid_list']):.6f}
+  - Min: {np.min(context['rmse_valid_list']):.6f}
+  - Max: {np.max(context['rmse_valid_list']):.6f}
 
 Validation MAE Statistics:
-  - Mean: {:.6f}
-  - Std: {:.6f}
-  - Min: {:.6f}
-  - Max: {:.6f}
+  - Mean: {np.mean(context['mae_valid_list']):.6f}
+  - Std: {np.std(context['mae_valid_list']):.6f}
+  - Min: {np.min(context['mae_valid_list']):.6f}
+  - Max: {np.max(context['mae_valid_list']):.6f}
 
-""".format(np.mean(rmse_train_list), np.std(rmse_train_list), np.min(rmse_train_list), np.max(rmse_train_list),
-               np.mean(rmse_valid_list), np.std(rmse_valid_list), np.min(rmse_valid_list), np.max(rmse_valid_list),
-               np.mean(mae_valid_list), np.std(mae_valid_list), np.min(mae_valid_list), np.max(mae_valid_list))
-        
-        # Add convergence analysis (only for training mode)
-        report_content += """6. CONVERGENCE ANALYSIS
--------------------------------------------------------
 """
-        
-        last_10_rmse = rmse_valid_list[-10:]
-        convergence_slope = np.polyfit(range(len(last_10_rmse)), last_10_rmse, 1)[0]
-        
-        if abs(convergence_slope) < 1e-6:
-            convergence_status = "CONVERGED"
-        elif convergence_slope < 0:
-            convergence_status = "STILL IMPROVING"
-        else:
-            convergence_status = "POTENTIAL OVERFITTING"
-        
-        report_content += """Convergence Status: {}
-Last 10 epochs RMSE trend: {:.8f} (slope)
-Final 10 epochs RMSE range: {:.6f}
+    
+    return content
+
+
+def _generate_convergence_analysis_section(context):
+    """Generate convergence analysis section"""
+    last_10_rmse = context['rmse_valid_list'][-10:]
+    convergence_slope = np.polyfit(range(len(last_10_rmse)), last_10_rmse, 1)[0]
+    
+    if abs(convergence_slope) < 1e-6:
+        convergence_status = "CONVERGED"
+    elif convergence_slope < 0:
+        convergence_status = "STILL IMPROVING"
+    else:
+        convergence_status = "POTENTIAL OVERFITTING"
+    
+    return f"""6. CONVERGENCE ANALYSIS
+-------------------------------------------------------
+Convergence Status: {convergence_status}
+Last 10 epochs RMSE trend: {convergence_slope:.8f} (slope)
+Final 10 epochs RMSE range: {np.max(last_10_rmse) - np.min(last_10_rmse):.6f}
 
 7. FINAL TRAINING METRICS
 -------------------------------------------------------
-Final Training RMSE: {:.6f}
-Final Validation RMSE: {:.6f}
-Final Validation MAE: {:.6f}
-Best Validation RMSE: {:.6f} at epoch {}
-Total Training Time Improvement: {:.6f}
-Training Efficiency: {:.6f} RMSE improvement per epoch
+Final Training RMSE: {context['rmse_train_list'][-1]:.6f}
+Final Validation RMSE: {context['rmse_valid_list'][-1]:.6f}
+Final Validation MAE: {context['mae_valid_list'][-1]:.6f}
+Best Validation RMSE: {context['best_rmse']:.6f} at epoch {context['best_epoch']}
+Total Training Time Improvement: {context['rmse_train_list'][0] - context['rmse_train_list'][-1]:.6f}
+Training Efficiency: {(context['rmse_train_list'][0] - context['rmse_train_list'][-1]) / context['total_epochs']:.6f} RMSE improvement per epoch
 
-""".format(convergence_status, convergence_slope, np.max(last_10_rmse) - np.min(last_10_rmse),
-               rmse_train_list[-1], rmse_valid_list[-1], mae_valid_list[-1], 
-               best_rmse, best_epoch,
-               rmse_train_list[0] - rmse_train_list[-1],
-               (rmse_train_list[0] - rmse_train_list[-1]) / total_epochs)
-        
-        # Add evaluation results if available
-        if eval_results:
-            report_content += """8. TEST SET EVALUATION RESULTS
+"""
+
+
+def _generate_evaluation_results_section(eval_results):
+    """Generate evaluation results section"""
+    return f"""8. TEST SET EVALUATION RESULTS
 -------------------------------------------------------
-RMSE: {:.6f}
-MAE: {:.6f}
-R²: {:.6f}
-MAPE: {:.6f}%
-SMAPE: {:.6f}%
-MASE: {:.6f}
-Coverage (95%): {:.2f}%
+RMSE: {eval_results[0]:.6f}
+MAE: {eval_results[1]:.6f}
+R²: {eval_results[2]:.6f}
+MAPE: {eval_results[3]:.6f}%
+SMAPE: {eval_results[4]:.6f}%
+MASE: {eval_results[5]:.6f}
+Coverage (95%): {eval_results[6]:.2f}%
 
-""".format(eval_results[0], eval_results[1], eval_results[2], 
-               eval_results[3], eval_results[4], eval_results[5], eval_results[6])
-    else:
-        # Evaluation mode - focused report with only essential sections
-        report_content = """
-=======================================================
-EVALUATION REPORT
-=================
-=======================================================
+"""
 
-Model: {}
-Generated: {}
-=======================================================
 
-1. MODEL CONFIGURATION
--------------------------------------------------------
-Input Size: {}
-Hidden Size: {}
-Output Size: {}
-Batch Size: {}
-Learning Rate: {}
-
-""".format(model_name, datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-               cfg.input_size, cfg.hidden_size, cfg.output_size, cfg.batch_size, cfg.lr)
-        
-        # Add model statistics (only for training mode when model is available)
-        if model is not None and report_type == "training":
-            total_params, trainable_params = get_param_number(model)
-            model_size_mb = (total_params * 4.0) / (1024.0 * 1024.0)
-            report_content += """2. MODEL STATISTICS
--------------------------------------------------------
-Total Parameters: {:,}
-Trainable Parameters: {:,}
-Non-trainable Parameters: {:,}
-Model Size: {:.2f} MB (assuming 4 bytes per parameter)
-
-""".format(total_params, trainable_params, total_params - trainable_params, model_size_mb)
-        else:
-            # Skip model statistics section for evaluation mode
-            pass
-      
-        # Add evaluation results (always relevant for validation reports)
-        if eval_results:
-            report_content += """2. TEST SET EVALUATION RESULTS
--------------------------------------------------------
-RMSE: {:.6f}
-MAE: {:.6f}
-R²: {:.6f}
-MAPE: {:.6f}%
-SMAPE: {:.6f}%
-MASE: {:.6f}
-Coverage (95%): {:.2f}%
-
-""".format(eval_results[0], eval_results[1], eval_results[2], 
-               eval_results[3], eval_results[4], eval_results[5], eval_results[6])
-    
-    # End of report
-    report_content += """
-=======================================================
-END OF REPORT - Model: {}
-=======================================================
-""".format(model_name)
-    
-    # Save report
+def _save_and_print_report(report_file, content, context):
+    """Save report to file and print summary"""
     with open(report_file, 'w', encoding='utf-8') as f:
-        f.write(report_content)
+        f.write(content)
     
-    # Print summary
-    if report_type == "training":
-        print("\nTraining report generated: {}".format(report_file))
-        print("Best validation RMSE: {:.6f} at epoch {}".format(best_rmse, best_epoch))
-        
-        if model is not None:
-            total_params, _ = get_param_number(model)
-            print("Total parameters: {:,}".format(total_params))
+    if context['is_training']:
+        print(f"\nTraining report generated: {report_file}")
+        print(f"Best validation RMSE: {context['best_rmse']:.6f} at epoch {context['best_epoch']}")
+        if context['model_stats']:
+            print(f"Total parameters: {context['model_stats']['total_params']:,}")
     else:
-        print("\nEvaluation report generated: {}".format(report_file))
-        if eval_results:
-            print("Test RMSE: {:.6f}".format(eval_results[0]))
-        
-        if model is not None:
-            total_params, _ = get_param_number(model)
-            print("Total parameters: {:,}".format(total_params))
-        print("Test R²: {:.6f}".format(eval_results[2]))
-    
-    return report_file
+        print(f"\nEvaluation report generated: {report_file}")
+        if context.get('eval_results'):
+            print(f"Test RMSE: {context['eval_results'][0]:.6f}")
+            print(f"Test R²: {context['eval_results'][2]:.6f}")
+        if context['model_stats']:
+            print(f"Total parameters: {context['model_stats']['total_params']:,}")
+
+
+def get_plot_directory(plot_type, model_name):
+    """Generate plot file path"""
+    from datetime import datetime
+    date_str = datetime.now().strftime('%m%d')
+    time_str = datetime.now().strftime('%H%M%S')
+    plots_dir = os.path.join('./reports', date_str, 'plots')
+    os.makedirs(plots_dir, exist_ok=True)
+    plots_file = os.path.join(plots_dir, f'{plot_type}_{date_str}_{time_str}_{model_name}.png')
+    return plots_file

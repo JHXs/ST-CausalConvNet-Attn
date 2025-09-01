@@ -25,9 +25,9 @@ in_channels = 18  ## 输入数据的通道数，选择的相关站点数18
 attention_heads = 8  # 注意力头数
 use_rotary = True    # 是否使用位置编码
 
-batch_size = 32 
-lr = 5e-4 # 1e-3
-n_epochs = 100 
+batch_size = 30 
+lr = 1e-3 # 1e-3
+n_epochs = 200 
 
 # 学习率调度参数
 lr_scheduler = False
@@ -41,7 +41,7 @@ es_patience = 10  # 10个epoch没有改善就停止训练
 model_save_pth = './models/model_{}.pth'.format(model_name)
 
 # 可视化
-plt = False # True
+plt = True # [True, False]
 
 # 报告生成
 generate_report = True  # 是否生成训练验证报告

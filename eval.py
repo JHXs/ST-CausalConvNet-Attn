@@ -73,7 +73,8 @@ def eval(net, test_loader, plot=False):
     print('Coverage (95%): {:.2f}%\n'.format(advanced_metrics['Coverage']))
     
     if plot:
-        utils.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'])
+        plots_file = utils.get_plot_directory('evaluation', cfg.model_name)
+        utils.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'], plots_file)
     
     # Generate evaluation report
     if cfg.generate_report:
