@@ -6,6 +6,58 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional
 
+class MultiHeadAttention(nn.Module):
+    """
+    Multi-head attention mechanism for temporal sequences
+    替代简单的时间注意力机制
+    """
+    
+    def __init__(self, embed_dim, num_heads=8, dropout=0.1, use_rotary=True):
+        super(MultiHeadAttention, self).__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.head_dim = embed_dim // num_heads
+        self.dropout = dropout
+        self.use_rotary = use_rotary
+        
+        # 线性变换
+        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim)
+        self.v_proj = nn.Linear(embed_dim, embed_dim)
+        
+        # Dropout
+        self.dropout_layer = nn.Dropout(dropout)
+        
+    def forward(self, x, attention_mask=None):
+        """
+        Args:
+            x: [batch_size, seq_len, embed_dim]
+            attention_mask: [batch_size, seq_len] (可选)
+        """
+        batch_size, seq_len, _ = x.shape
+        
+        # 线性变换
+        q = self.q_proj(x)  # [batch_size, seq_len, embed_dim]
+        k = self.k_proj(x)  # [batch_size, seq_len, embed_dim]
+        v = self.v_proj(x)  # [batch_size, seq_len, embed_dim]
+        
+        # 计算注意力分数
+        scores = torch.matmul(q, k.transpose(-2, -1)) / (self.head_dim ** 0.5)
+        
+        # 应用attention mask
+        if attention_mask is not None:
+            # 扩展mask维度
+            attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+            scores = scores.masked_fill(attention_mask == 0, float('-inf'))
+        
+        # Softmax
+        attn_weights = F.softmax(scores, dim=-1)
+        attn_weights = self.dropout_layer(attn_weights)
+        
+        # 应用注意力权重
+        output = torch.matmul(attn_weights, v)
+        
+        return output
 
 class HType:
     WEAK = 0
