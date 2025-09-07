@@ -472,6 +472,7 @@ Learning Rate: {cfg.lr}
 Number of Epochs: {cfg.n_epochs}
 Early Stopping: {cfg.early_stopping} (Patience: {cfg.es_patience})
 Learning Rate Scheduler: {cfg.lr_scheduler}
+Prediction Variables: {cfg.prediction_variables}
 
 """
     
