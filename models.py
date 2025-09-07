@@ -207,75 +207,15 @@ class STCN(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred
 
-
-class STCN_Attention(nn.Module):
+class STCN_MultiHeadAttention(nn.Module):
     """
-    只保留时间注意力机制的STCN模型
-    主要改进：
-    1. 移除空间注意力机制，只保留时间注意力
-    2. 简化特征融合策略
-    3. 保持原有特征的残差连接
-    4. 使用最后一个时间步作为输出
-    """
-    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
-        super(STCN_Attention, self).__init__()
-        
-        # 原始STCN组件 - 与原始STCN保持一致
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, 64, kernel_size=(1, 1)),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, 1, kernel_size=(1, 1)),
-            nn.BatchNorm2d(1),
-            nn.ReLU()
-        )
-        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
-        
-        # 时间注意力机制
-        self.temporal_attention = nn.Sequential(
-            nn.Linear(num_channels[-1], num_channels[-1] // 4),
-            nn.ReLU(),
-            nn.Linear(num_channels[-1] // 4, 1),
-            nn.Sigmoid()
-        )
-        
-        # 输出层
-        self.linear = nn.Linear(num_channels[-1], output_size)
-        
-        # 层归一化
-        self.layer_norm = nn.LayerNorm(num_channels[-1])
-
-    def forward(self, x):
-        # 原始STCN处理
-        conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
-        output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
-        
-        # 时间注意力
-        temporal_weights = self.temporal_attention(output)  # [batch, seq_len, 1]
-        temporal_enhanced = output * temporal_weights  # [batch, seq_len, features]
-        
-        # 残差连接：保持原始特征
-        residual = output
-        
-        # 残差连接 + 层归一化
-        final_features = self.layer_norm(temporal_enhanced + residual)
-        
-        # 使用最后一个时间步进行预测
-        last_step = final_features[:, -1, :]  # [batch, features]
-        pred = self.linear(last_step)
-        
-        return pred
-
-
-class STCN_LogLinearAttention(nn.Module):
-    """
-    使用log-linear attention的STCN模型
+    使用多头注意力的STCN模型
     替换原有STCN_Attention中的简单时间注意力
     """
     
     def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout, 
                  attention_heads=8, use_rotary=True):
-        super(STCN_LogLinearAttention, self).__init__()
+        super(STCN_MultiHeadAttention, self).__init__()
         
         # 原始STCN组件
         self.conv = nn.Sequential(
@@ -291,7 +231,7 @@ class STCN_LogLinearAttention(nn.Module):
         
         # Log-linear attention 替换简单时间注意力
         attention_embed_dim = num_channels[-1]
-        self.temporal_attention = LogLinearAttention(
+        self.temporal_attention = MultiHeadAttention(
             embed_dim=attention_embed_dim,
             num_heads=attention_heads,
             dropout=dropout,
@@ -309,7 +249,7 @@ class STCN_LogLinearAttention(nn.Module):
         conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
         output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
         
-        # Log-linear attention处理
+        # Multi-head attention处理
         attended_output = self.temporal_attention(output)  # [batch, seq_len, features]
         
         # 残差连接：保持原始特征
@@ -330,14 +270,14 @@ class STCN_LogLinearAttention(nn.Module):
         return self
 
 
-class LogLinearAttention(nn.Module):
+class MultiHeadAttention(nn.Module):
     """
-    Log-linear attention mechanism for temporal sequences
+    Multi-head attention mechanism for temporal sequences
     替代简单的时间注意力机制
     """
     
     def __init__(self, embed_dim, num_heads=8, dropout=0.1, use_rotary=True):
-        super(LogLinearAttention, self).__init__()
+        super(MultiHeadAttention, self).__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads

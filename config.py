@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN_LogLinearAttention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'STCN_LogLinearAttention']
+model_name = 'STCN_MultiHeadAttention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_MultiHeadAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
     f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
@@ -45,6 +45,8 @@ plt = True # [True, False]
 
 # 报告生成
 generate_report = True  # 是否生成训练验证报告
+
+prediction_variables = 'PM25_Concentration'  # 预测变量列表
 
 def print_params():
     print('\n------ Parameters ------')
