@@ -342,17 +342,57 @@ class SimplifiedHAttention(nn.Module):
         level_indices = self.get_level_indices(seq_len)  # [seq_len, seq_len]
         level_indices = level_indices.unsqueeze(0).unsqueeze(0)  # [1, 1, seq_len, seq_len]
         level_indices = level_indices.expand(batch_size, self.num_heads, -1, -1)
+        # 确保level_indices与输入在同一设备上
+        level_indices = level_indices.to(x.device)
+        
+        # 确保level_indices在hierarchical_weights的范围内
+        level_indices = torch.clamp(level_indices, 0, 2)  # 因为hierarchical_weights有3个级别 (0,1,2)
         
         # 获取层次化权重
         hier_weights = self.hierarchical_weights[:seq_len, :, :3]  # [seq_len, num_heads, 3]
-        hier_weights = hier_weights.unsqueeze(2).expand(-1, -1, seq_len, -1)  # [seq_len, num_heads, seq_len, 3]
         
-        # 根据级别选择权重
-        weights = torch.gather(hier_weights, 3, level_indices)  # [batch_size, num_heads, seq_len, seq_len]
+        # 根据级别选择权重 - 直接索引
+        # level_indices: [batch_size, num_heads, seq_len, seq_len]
+        # hier_weights: [seq_len, num_heads, 3]
         
-        # 计算衰减因子
+        # 使用优化的向量操作替代循环
+        # hier_weights: [seq_len, num_heads, 3]
+        # level_indices: [batch_size, num_heads, seq_len, seq_len]
+        
+        # 确保seq_len不超过hier_weights的大小
+        actual_seq_len = min(seq_len, hier_weights.shape[0])
+        
+        # 批量获取权重值
+        # 首先确保level_indices在有效范围内
+        level_indices_clamped = torch.clamp(level_indices, 0, 2)
+        
+        # 创建索引数组用于批量访问
+        batch_idx = torch.arange(batch_size, device=x.device).view(-1, 1, 1, 1).expand(-1, self.num_heads, seq_len, seq_len)
+        head_idx = torch.arange(self.num_heads, device=x.device).view(1, -1, 1, 1).expand(batch_size, -1, seq_len, seq_len)
+        seq_idx = torch.arange(seq_len, device=x.device).view(1, 1, -1, 1).expand(batch_size, self.num_heads, -1, seq_len)
+        level_idx = level_indices_clamped.long()
+        
+        # 批量获取权重，确保seq_idx不超出范围
+        seq_idx_safe = torch.clamp(seq_idx, 0, hier_weights.shape[0] - 1)
+        
+        # 使用高级索引批量获取权重
+        weights_flat = hier_weights[seq_idx_safe, head_idx, level_idx]  # [batch_size, num_heads, seq_len, seq_len]
+        
+        # 设置对角线为0
+        diag_mask = torch.ones(seq_len, seq_len, device=x.device).triu(diagonal=1).tril(diagonal=-1).bool()
+        weights_flat[~diag_mask.unsqueeze(0).unsqueeze(0).expand(batch_size, self.num_heads, -1, -1)] = 0.0
+        
+        weights = weights_flat
+        
+        # 计算衰减因子 - 在permute之前
         decay_factors = torch.pow(0.5, level_indices.float())  # 指数衰减
-        weights = weights * decay_factors
+        
+        # 重排权重维度以匹配注意力计算 [batch_size, num_heads, seq_len, seq_len]
+        weights = weights.permute(0, 2, 1, 3)
+        
+        # 应用衰减因子 - 重排decay_factors以匹配weights的维度
+        decay_factors_permuted = decay_factors.permute(0, 2, 1, 3)
+        weights = weights * decay_factors_permuted
         
         # 归一化
         weights = weights / (weights.sum(dim=-1, keepdim=True) + 1e-8)
@@ -365,8 +405,11 @@ class SimplifiedHAttention(nn.Module):
         # 应用dropout
         weights = self.dropout_layer(weights)
         
-        # 计算注意力输出
-        output = torch.matmul(weights, v)  # [batch_size, num_heads, seq_len, head_dim]
+        # 计算注意力输出 - 修正维度顺序
+        # weights: [batch_size, seq_len, num_heads, seq_len] -> [batch_size, seq_len, seq_len, num_heads]
+        # v: [batch_size, num_heads, seq_len, head_dim]
+        weights_transposed = weights.permute(0, 2, 1, 3)  # [batch_size, num_heads, seq_len, seq_len]
+        output = torch.matmul(weights_transposed, v)  # [batch_size, num_heads, seq_len, head_dim]
         
         # 重塑回原始形状
         output = output.transpose(1, 2).contiguous()
