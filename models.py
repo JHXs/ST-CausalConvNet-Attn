@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.nn.utils.parametrizations import weight_norm
-from attention_utils import HAttention, SimplifiedHAttention, MultiHeadAttention
+from attention_utils import HAttention, MultiHeadAttention
 
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25):
@@ -359,95 +359,3 @@ class STCN_LLAttention(nn.Module):
         pred = self.linear(last_step)
         
         return pred
-
-
-class STCN_SimplifiedLLAttention(nn.Module):
-    """
-    使用简化对数线性注意力的STCN模型
-    适合资源有限的场景，计算效率更高
-    """
-    
-    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout, 
-                 attention_heads=4, use_rotary=True, base=2):
-        super(STCN_SimplifiedLLAttention, self).__init__()
-        
-        # 原始STCN组件
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, 64, kernel_size=(1, 1)),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.Conv2d(64, 1, kernel_size=(1, 1)),
-            nn.BatchNorm2d(1),
-            nn.ReLU()
-        )
-        
-        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
-        
-        # 简化对数线性注意力
-        attention_embed_dim = num_channels[-1]
-        self.temporal_attention = SimplifiedHAttention(
-            embed_dim=attention_embed_dim,
-            num_heads=attention_heads,
-            base=base,
-            dropout=dropout,
-            max_length=input_size
-        )
-        
-        # 输出层
-        self.linear = nn.Linear(num_channels[-1], output_size)
-        
-        # 层归一化
-        self.layer_norm = nn.LayerNorm(num_channels[-1])
-        
-        # 使用旋转位置编码
-        self.use_rotary = use_rotary
-        if use_rotary:
-            self.rotary_dim = attention_embed_dim // attention_heads
-        
-    def rotary_position_encoding(self, seq_len, dim):
-        """生成旋转位置编码"""
-        inv_freq = 1.0 / (10000 ** (torch.arange(0, dim, 2).float() / dim))
-        inv_freq = inv_freq.to(next(self.parameters()).device)
-        positions = torch.arange(seq_len, dtype=torch.float32, device=inv_freq.device)
-        freqs = torch.outer(positions, inv_freq)
-        
-        # 生成复数形式的位置编码
-        cos_freqs = torch.cos(freqs)
-        sin_freqs = torch.sin(freqs)
-        
-        return cos_freqs, sin_freqs
-    
-    def apply_rotary(self, x, cos_freqs, sin_freqs):
-        """应用旋转位置编码"""
-        # x: [batch_size, seq_len, num_heads, head_dim]
-        # 将x分成实部和虚部
-        x_real, x_imag = x.chunk(2, dim=-1) if x.shape[-1] % 2 == 0 else x.chunk(2, dim=-1)
-        
-        # 应用旋转
-        x_rot = torch.cat([
-            x_real * cos_freqs.unsqueeze(0) - x_imag * sin_freqs.unsqueeze(0),
-            x_real * sin_freqs.unsqueeze(0) + x_imag * cos_freqs.unsqueeze(0)
-        ], dim=-1)
-        
-        return x_rot
-    
-    def forward(self, x):
-        # 原始STCN处理 - 完全按照原始STCN的方式
-        conv_out = self.conv(x).squeeze(1)  # squeeze channel dimension after conv2d
-        output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
-        
-        # 简化对数线性注意力处理
-        attended_output, _ = self.temporal_attention(output)  # [batch, seq_len, features]
-        
-        # 残差连接：保持原始特征
-        residual = output
-        
-        # 残差连接 + 层归一化
-        final_features = self.layer_norm(attended_output + residual)
-        
-        # 使用最后一个时间步进行预测
-        last_step = final_features[:, -1, :]  # [batch, features]
-        pred = self.linear(last_step)
-        
-        return pred
-    
