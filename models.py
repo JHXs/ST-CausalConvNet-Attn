@@ -207,15 +207,16 @@ class STCN(nn.Module):
         pred = self.linear(output[:, -1, :])
         return pred
 
-class STCN_MultiHeadAttention(nn.Module):
+class STCN_Attention(nn.Module):
     """
-    使用多头注意力的STCN模型
+    使用论文中时间注意力机制的STCN模型
+    基于 TCN-attention-HAR 论文的注意力设计
     """
-    
-    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout, 
+
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout,
                  attention_heads=8, use_rotary=True):
-        super(STCN_MultiHeadAttention, self).__init__()
-        
+        super(STCN_Attention, self).__init__()
+
         # 原始STCN组件
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1)),
@@ -225,21 +226,19 @@ class STCN_MultiHeadAttention(nn.Module):
             nn.BatchNorm2d(1),
             nn.ReLU()
         )
-        
+
         self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout=dropout)
-        
-        # Log-linear attention 替换简单时间注意力
+
+        # 论文中的时间注意力机制：e_t = U*tanh(w*h_t + b)
         attention_embed_dim = num_channels[-1]
-        self.temporal_attention = MultiHeadAttention(
-            embed_dim=attention_embed_dim,
-            num_heads=attention_heads,
-            dropout=dropout,
-            use_rotary=use_rotary
-        )
-        
+        self.attention_linear = nn.Linear(attention_embed_dim, attention_embed_dim)
+        self.attention_tanh = nn.Tanh()
+        self.attention_score = nn.Linear(attention_embed_dim, 1)
+        self.attention_dropout = nn.Dropout(dropout)
+
         # 输出层
         self.linear = nn.Linear(num_channels[-1], output_size)
-        
+
         # 层归一化
         self.layer_norm = nn.LayerNorm(num_channels[-1])
 
@@ -247,20 +246,34 @@ class STCN_MultiHeadAttention(nn.Module):
         # 原始STCN处理
         conv_out = self.conv(x).squeeze(1)  # [batch, channels, seq_len]
         output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
-        
-        # Multi-head attention处理
-        attended_output = self.temporal_attention(output)  # [batch, seq_len, features]
-        
-        # 残差连接：保持原始特征
-        residual = output
-        
+
+        # 论文中的时间注意力机制
+        # Step 1: e_t = U*tanh(w*h_t + b)
+        attention_input = self.attention_linear(output)  # [batch, seq_len, features]
+        attention_tanh = self.attention_tanh(attention_input)  # [batch, seq_len, features]
+        attention_scores = self.attention_score(attention_tanh).squeeze(-1)  # [batch, seq_len]
+
+        # Step 2: a_t = softmax(e_t) - 归一化得到注意力权重
+        attention_weights = F.softmax(attention_scores, dim=-1)  # [batch, seq_len]
+        attention_weights = self.attention_dropout(attention_weights)
+
+        # Step 3: s_t = Σ_t a_t * h_t - 加权求和
+        # 扩展维度以便广播乘法
+        attention_weights_expanded = attention_weights.unsqueeze(-1)  # [batch, seq_len, 1]
+        attended_output = output * attention_weights_expanded  # [batch, seq_len, features]
+
+        # 对时间维度求和得到最终的注意力表示
+        attended_features = torch.sum(attended_output, dim=1)  # [batch, features]
+
+        # 残差连接：使用原始输出的最后一个时间步
+        residual = output[:, -1, :]  # [batch, features]
+
         # 残差连接 + 层归一化
-        final_features = self.layer_norm(attended_output + residual)
-        
-        # 使用最后一个时间步进行预测
-        last_step = final_features[:, -1, :]  # [batch, features]
-        pred = self.linear(last_step)
-        
+        final_features = self.layer_norm(attended_features + residual)
+
+        # 最终预测
+        pred = self.linear(final_features)
+
         return pred
     
     def _apply(self, fn):
