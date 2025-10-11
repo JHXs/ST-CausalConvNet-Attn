@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.nn.utils.parametrizations import weight_norm
-from attention_utils import HAttention, MultiHeadAttention
+from attention_utils import HAttention, PositionalEncoding
 
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25):
@@ -281,6 +281,82 @@ class STCN_Attention(nn.Module):
         super()._apply(fn)
         return self
 
+
+class ImprovedSTCN_Attention(nn.Module):
+    """
+    改进版STCN注意力模型，使用多头注意力和位置编码
+    """
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
+        super(ImprovedSTCN_Attention, self).__init__()
+
+        # 原始STCN组件
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1)),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=(1, 1)),
+            nn.BatchNorm2d(1),
+            nn.ReLU()
+        )
+
+        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout=dropout)
+
+        # 位置编码
+        self.pos_encoding = PositionalEncoding(num_channels[-1])
+        
+        # 多头自注意力机制
+        self.multihead_attn = nn.MultiheadAttention(
+            embed_dim=num_channels[-1],
+            num_heads=4,  # 减少头的数量以降低复杂度
+            dropout=dropout,
+            batch_first=True
+        )
+        
+        # 前馈网络
+        self.feed_forward = nn.Sequential(
+            nn.Linear(num_channels[-1], num_channels[-1] * 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(num_channels[-1] * 2, num_channels[-1])
+        )
+        
+        # 层归一化
+        self.norm1 = nn.LayerNorm(num_channels[-1])
+        self.norm2 = nn.LayerNorm(num_channels[-1])
+        self.dropout = nn.Dropout(dropout)
+        
+        # 输出层
+        self.linear = nn.Linear(num_channels[-1], output_size)
+        
+        # 初始化权重
+        self._init_weights()
+
+    def _init_weights(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, x):
+        # 原始STCN处理
+        conv_out = self.conv(x).squeeze(1)  # [batch, seq_len, features]
+        tcn_output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
+
+        # 添加位置编码
+        tcn_output = self.pos_encoding(tcn_output)
+        
+        # 多头自注意力 + 残差连接
+        attn_output, _ = self.multihead_attn(tcn_output, tcn_output, tcn_output)
+        attn_output = self.norm1(attn_output + tcn_output)  # 第一个残差连接
+        
+        # 前馈网络 + 残差连接
+        ff_output = self.feed_forward(attn_output)
+        final_output = self.norm2(ff_output + attn_output)  # 第二个残差连接
+        
+        # 使用最后一个时间步进行预测
+        pred = self.linear(self.dropout(final_output[:, -1, :]))
+        
+        return pred
+
 class STCN_LLAttention(nn.Module):
     """
     使用对数线性注意力的STCN模型
@@ -372,3 +448,4 @@ class STCN_LLAttention(nn.Module):
         pred = self.linear(last_step)
         
         return pred
+    
