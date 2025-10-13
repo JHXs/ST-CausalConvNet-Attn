@@ -34,11 +34,13 @@ ST-CausalConvNet-Attention 的架构包括三部分：（1）多个监测站时�
 
 ## 文件结构和数据描述
 
-- **数据文件夹**:
+- **data 文件夹**:
   - **microsoft_urban_air_data**: 来自微软研究院城市计算团队的空气质量数据集（有关如何使用该数据集的更多帮助，请参阅[网页](http://research.microsoft.com/en-us/projects/urbanair)）。
   - **stations_data**: 北京各站点的数据分别存储在该目录中。
   - **xy**: X 和 y 矩阵（保存为 pickle 文件格式）是经过 `data_process.py` 处理得到的用于深度学习模型的输入。
 - **models 文件夹**: 存储训练得到的最佳模型的文件夹。
+- **doc 文件夹**：存储文档。
+- **reports 文件夹**：存储生成的可视化以及报告。
 - **config.py**: 用于设置输入数据位置、模型参数和模型存储路径的配置文件。
 - **data_process.py**: 用于提取选定的中心站和相关性较高的其他站的数据，并将原始数据转化为高维矩阵，以匹配模型的输入结构。
 - **models.py**: 用于生成预测任务的 ST-CausalConvNet-Attention 的核心函数。模型结构可参考论文。此外，它还包含其他模型（SimpleRNN、GRU 和 LSTM）以供比较。
