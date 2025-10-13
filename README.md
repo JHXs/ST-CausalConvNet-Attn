@@ -87,4 +87,6 @@ python eval.py
 
 We thanks the previous work [An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling](https://arxiv.org/abs/1803.01271) by Shaojie Bai, J. Zico Kolter and Vladlen Koltun, as the basic knowledge for TCN architecture in our research.
 
+感谢 Lei Zhang, Jiaming Na, Jie Zhu, Zhikuan Shi, Changxin Zou 和 Lin Yang 先前的研究成果 [Spatiotemporal causal convolutional network for forecasting hourly PM2.5 concentrations in Beijing, China](https://www.sciencedirect.com/science/article/pii/S0098300421001631)，它为研究中的 STCN 架构提供了基础知识。
+
 
