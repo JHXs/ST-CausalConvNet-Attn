@@ -357,6 +357,103 @@ class ImprovedSTCN_Attention(nn.Module):
         
         return pred
 
+
+class AdvancedSTCN_Attention(nn.Module):
+    """
+    高级版STCN注意力模型，优化R2值的设计
+    """
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
+        super(AdvancedSTCN_Attention, self).__init__()
+
+        # 原始STCN组件
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(1, 1)),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=64, out_channels=1, kernel_size=(1, 1)),
+            nn.BatchNorm2d(1),
+            nn.ReLU()
+        )
+
+        self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout=dropout)
+
+        # 可学习的位置编码（而不是固定的正弦余弦）
+        self.learnable_pos_encoding = nn.Parameter(torch.randn(1, 100, num_channels[-1]) * 0.1)
+        
+        # 改进的多头注意力机制，使用更少的头和更深的网络
+        self.multihead_attn = nn.MultiheadAttention(
+            embed_dim=num_channels[-1],
+            num_heads=2,  # 减少头的数量，避免过度复杂
+            dropout=dropout,
+            batch_first=True
+        )
+        
+        # 更深的前馈网络
+        self.feed_forward = nn.Sequential(
+            nn.Linear(num_channels[-1], num_channels[-1] * 4),
+            nn.GELU(),  # 使用GELU激活函数
+            nn.Dropout(dropout),
+            nn.Linear(num_channels[-1] * 4, num_channels[-1] * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(num_channels[-1] * 2, num_channels[-1])
+        )
+        
+        # 改进的层归一化
+        self.norm1 = nn.LayerNorm(num_channels[-1])
+        self.norm2 = nn.LayerNorm(num_channels[-1])
+        
+        # 从TCN路径到最终输出的残差连接
+        self.tcn_residual_proj = nn.Linear(num_channels[-1], num_channels[-1])
+        
+        self.dropout = nn.Dropout(dropout)
+        
+        # 输出层
+        self.linear = nn.Sequential(
+            nn.Linear(num_channels[-1], num_channels[-1] // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(num_channels[-1] // 2, output_size)
+        )
+        
+        # 初始化权重
+        self._init_weights()
+
+    def _init_weights(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+
+    def forward(self, x):
+        # 原始STCN处理
+        conv_out = self.conv(x).squeeze(1)  # [batch, seq_len, features]
+        tcn_output = self.tcn(conv_out.transpose(1, 2)).transpose(1, 2)  # [batch, seq_len, features]
+        
+        # 获取序列长度并截取相应的位置编码
+        seq_len = tcn_output.size(1)
+        pos_encoding = self.learnable_pos_encoding[:, :seq_len, :].expand(tcn_output.size(0), -1, -1)
+        
+        # 添加可学习位置编码
+        tcn_output_with_pos = tcn_output + pos_encoding
+        
+        # 多头自注意力 + 残差连接
+        attn_output, _ = self.multihead_attn(tcn_output_with_pos, tcn_output_with_pos, tcn_output_with_pos)
+        attn_output = self.norm1(attn_output + tcn_output)  # 残差连接回原始TCN输出
+        
+        # 前馈网络 + 残差连接
+        ff_output = self.feed_forward(attn_output)
+        final_output = self.norm2(ff_output + attn_output)  # 第二个残差连接
+        
+        # 融合原始TCN最后一个时间步的特征
+        tcn_last = self.tcn_residual_proj(tcn_output[:, -1, :])  # [batch, features]
+        combined_features = final_output[:, -1, :] + tcn_last  # 残差连接
+        
+        # 应用dropout和输出层
+        combined_features = self.dropout(combined_features)
+        pred = self.linear(combined_features)
+        
+        return pred
+
 class STCN_LLAttention(nn.Module):
     """
     使用对数线性注意力的STCN模型
