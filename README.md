@@ -11,7 +11,7 @@
 - 推荐使用 `miniforge`
   - 安装
     ```shell
-    sudo pacman miniforge # 需要添加 arch4edu 源
+    sudo pacman -S miniforge # 需要添加 arch4edu 源
     ```
     初始化
     ```shell
