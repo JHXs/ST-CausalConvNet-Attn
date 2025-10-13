@@ -1,55 +1,81 @@
-# ST-CausalConvNet
-A Spatiotemporal causal convolutional network for predicting PM2.5 concentrations.
+# ST-CausalConvNet-Attention
+基于改进注意力机制的时空因果卷积网络时间序列预测方法
+以中国北京 PM2.5 为例。
 
-## Model architecture
+## 准备
 
-The architecture of ST-CausalConvNet, which includes two parts: (A) integration of the spatiotemporal information of multiple monitoring stations; (B) causal convolutional network (for the following example of the model architecture, kernel size = 3 and dilations = 1, 2, and 4).
+- Python3
+- Numpy
+- Pandas
+- PyTorch (>= 1.6.0)
+- 推荐使用 `miniforge`
+  - 安装
+    ```shell
+    sudo pacman miniforge # 需要添加 arch4edu 源
+    ```
+    初始化
+    ```shell
+    conda init
+    ```
+  - 创建虚拟环境
+    ```shell
+    conda create -n myproj python=3.10
+    conda activate myproj # 激活虚拟环境
+    # 按需手动装包： pip install xxx
+    ```
+    `-n`: 虚拟环境名字
+    `python`: 指定 python 版本
+
+## 模型架构
+
+ST-CausalConvNet-Attention 的架构包括三部分：（1）多个监测站时空信息的整合；（2）因果卷积网络（对于以下模型架构示例，核大小 = 3，扩张数 = 1、2 和 4）；（3）注意力层。
 
 ![Model structure](./ST-CausalConvNet_Architecture.jpg)
 
-## Description of data and files
+## 文件结构和数据描述
 
-- **data (directory)**:
-  - **microsoft_urban_air_data**: The air-quality dataset from the Urban Computing Team in Microsoft Research (see the [web page](http://research.microsoft.com/en-us/projects/urbanair) for getting more help of how to use this).
-  - **stations_data**: The data for each station in Beijing are separately stored in this directory.
-  - **xy**: X and y matrices (saved as the pickle file format) for the input of the deep learning model.
-- **models (directory)**: The folder for storing the model.
-- **config.py**: The configuration file for setting the input data location, model parameters and model storage path.
-- **data_process**: For extracting the data of the selected center station and high correlated other stations, and transform the original data into the high dimensional matrix for matching the input structure of the model.
-- **eval.py**: For evaluating the model performance on the test set.
-- **models.py**: The core function for generating the ST-CausalConvNet for the prediction task. The model structure can be referred to the paper. It also contains the other models (SimpleRNN, GRU and LSTM) for comparison.
-- **train.py**: It implements the reading parameters, data preparation and training procedure.
-- **utils.py**: It contains functions for the data loading and generating batch data for training and validating.
+- **数据文件夹**:
+  - **microsoft_urban_air_data**: 来自微软研究院城市计算团队的空气质量数据集（有关如何使用该数据集的更多帮助，请参阅[网页](http://research.microsoft.com/en-us/projects/urbanair)）。
+  - **stations_data**: 北京各站点的数据分别存储在该目录中。
+  - **xy**: X 和 y 矩阵（保存为 pickle 文件格式）是经过 `data_process.py` 处理得到的用于深度学习模型的输入。
+- **models 文件夹**: 存储训练得到的最佳模型的文件夹。
+- **config.py**: 用于设置输入数据位置、模型参数和模型存储路径的配置文件。
+- **data_process.py**: 用于提取选定的中心站和相关性较高的其他站的数据，并将原始数据转化为高维矩阵，以匹配模型的输入结构。
+- **models.py**: 用于生成预测任务的 ST-CausalConvNet-Attention 的核心函数。模型结构可参考论文。此外，它还包含其他模型（SimpleRNN、GRU 和 LSTM）以供比较。
+- **attention_utils.py**：为 `models.py` 提供生成模型的相应类和函数。
+- **train.py**: 读取参数、数据准备和训练程序。
+- **eval.py**: 用于评估测试集上的模型性能。
+- **utils.py**: 它包含用于训练、验证的数据加载、生成批量数据、可视化和生成报告等功能。
 
-## Usage instructions
+## 使用介绍
 
-#### Configuration
+#### 配置
 
-All model parameters can be set in `config.py`, such as the learning rate, batch size, number of layers, kernel size, etc.
+所有模型参数都可以在 `config.py` 中设置，例如学习率、批量大小、层数、内核大小、注意力头数、早停等。
 
-#### process data
+#### 数据处理
 
 ```python
 python data_process_me.py
 ```
 
-The program processes the raw data set and saves it as a pkl file in the `Xy` folder for subsequent model training and verification.
+程序对原始数据集进行处理，并将其保存为 `Xy` 文件夹中的pkl文件，以供后续的模型训练和验证。
 
-#### Training the model
+#### 训练模型
 
 ```python
 python train.py
 ```
 
-The program can automatically save the most accurate (with the lowest RMSE on validation set) model in the `models` directory.
+程序可以自动将最佳（验证集上的 RMSE 最低）模型保存在 `models` 目录中。
 
-#### Evaluation
+#### 评估
 
 ```python
 python eval.py
 ```
 
-The saved model can be loaded and evaluating on the test set.
+加载保存的模型并在测试集上进行评估。
 
 ## License
 
