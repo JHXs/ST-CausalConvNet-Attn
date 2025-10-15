@@ -286,7 +286,8 @@ class ImprovedSTCN_Attention(nn.Module):
     """
     改进版STCN注意力模型，使用多头注意力和位置编码
     """
-    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout,
+                 attention_heads: int = 4):
         super(ImprovedSTCN_Attention, self).__init__()
 
         # 原始STCN组件
@@ -307,7 +308,7 @@ class ImprovedSTCN_Attention(nn.Module):
         # 多头自注意力机制
         self.multihead_attn = nn.MultiheadAttention(
             embed_dim=num_channels[-1],
-            num_heads=4,  # 减少头的数量以降低复杂度
+            num_heads=attention_heads,
             dropout=dropout,
             batch_first=True
         )
@@ -362,7 +363,8 @@ class AdvancedSTCN_Attention(nn.Module):
     """
     高级版STCN注意力模型，优化R2值的设计
     """
-    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout):
+    def __init__(self, input_size, in_channels, output_size, num_channels, kernel_size, dropout,
+                 attention_heads: int = 2):
         super(AdvancedSTCN_Attention, self).__init__()
 
         # 原始STCN组件
@@ -383,7 +385,7 @@ class AdvancedSTCN_Attention(nn.Module):
         # 改进的多头注意力机制，使用更少的头和更深的网络
         self.multihead_attn = nn.MultiheadAttention(
             embed_dim=num_channels[-1],
-            num_heads=2,  # 减少头的数量，避免过度复杂
+            num_heads=attention_heads,
             dropout=dropout,
             batch_first=True
         )
