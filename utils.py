@@ -476,7 +476,7 @@ Prediction Variables: {cfg.prediction_variables}
 
 """
     
-    if cfg.model_name in ['STCN', 'STCN_Attention', 'STCN_LogLinearAttention']:
+    if cfg.model_name in ['STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']:
         config_str += f"""Input Channels: {cfg.in_channels}
 Attention Heads: {cfg.attention_heads}
 Use Rotary: {cfg.use_rotary}
