@@ -34,7 +34,9 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     
     # 早停机制
     best_valid_loss = float('inf')
+    best_epoch_idx = 0
     patience_counter = 0
+    early_stop_epoch = None
 
     for epoch in range(1, cfg.n_epochs + 1):
         # Training phase
@@ -127,14 +129,15 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
         if cfg.early_stopping:
             if rmse_valid_cpu < best_valid_loss:
                 best_valid_loss = rmse_valid_cpu
+                best_epoch_idx = epoch
                 patience_counter = 0
                 # 保存最佳模型
                 torch.save(net.state_dict(), cfg.model_save_pth)
-                # print(f"  -> New best model saved! (RMSE: {rmse_valid_cpu:.4f})\n")
             else:
                 patience_counter += 1
                 if patience_counter >= cfg.es_patience:
                     print(f"Early stopping triggered after {epoch} epochs!")
+                    early_stop_epoch = epoch
                     break
         else:
             # 原有的模型保存逻辑
@@ -174,6 +177,15 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
         )
     else:
         print("\nReport generation skipped (generate_report=False)")
+
+    # 返回训练元信息，便于 sweep 汇总
+    return {
+        'elapsed_seconds': total_time,
+        'best_epoch': best_epoch_idx,
+        'early_stop_epoch': early_stop_epoch,
+        'final_rmse_train': rmse_train_list[-1] if rmse_train_list else None,
+        'final_rmse_valid': rmse_valid_list[-1] if rmse_valid_list else None,
+    }
 
 
 def main():

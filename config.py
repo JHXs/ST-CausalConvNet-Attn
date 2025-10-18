@@ -22,12 +22,12 @@ dropout = 0.25 # 0.25
 in_channels = 18  ## 输入数据的通道数，选择的相关站点数18
 
 # Log-linear attention 特定参数
-attention_heads = 8  # 注意力头数
+attention_heads = 1  # 注意力头数
 use_rotary = True   # 暂时禁用位置编码以避免维度错误
 
 batch_size = 32 
-lr = 1e-3 # 1e-3
-n_epochs = 200 
+lr = 1.9e-3 # 1e-3
+n_epochs = 2000 
 
 # 学习率调度参数
 lr_scheduler = False
@@ -41,10 +41,10 @@ es_patience = 10  # 10个epoch没有改善就停止训练
 model_save_pth = './models/model_{}.pth'.format(model_name)
 
 # 可视化
-plt = False # [True, False]
+plt = True # [True, False]
 
 # 报告生成
-generate_report = False  # 是否生成训练验证报告
+generate_report = True  # 是否生成训练验证报告
 
 prediction_variables = 'PM25_Concentration'  # 预测变量列表
 

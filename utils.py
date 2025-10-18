@@ -12,6 +12,13 @@ from torch.utils.data import DataLoader, TensorDataset
 from scipy import stats
 from datetime import datetime
 
+# 当前运行的标识，用于将报告与图表落入独立子目录
+CURRENT_RUN_ID = None
+
+def set_run_id(run_id: str):
+    global CURRENT_RUN_ID
+    CURRENT_RUN_ID = run_id
+
 
 def save_pickle(filename, data):
     with open(filename, 'wb') as f:
@@ -409,6 +416,9 @@ def _get_report_file_path(report_path, model_name, prefix):
     date_str = datetime.now().strftime('%m%d')
     time_str = datetime.now().strftime('%H%M%S')
     date_dir = os.path.join(report_path, date_str)
+    # 如果存在 run_id，则在日期目录下创建 run_id 子目录
+    if CURRENT_RUN_ID:
+        date_dir = os.path.join(date_dir, CURRENT_RUN_ID)
     os.makedirs(date_dir, exist_ok=True)
     
     return os.path.join(date_dir, f'{prefix}_{date_str}_{time_str}_{model_name}.txt')
@@ -629,11 +639,15 @@ def _save_and_print_report(report_file, content, context):
 
 
 def get_plot_directory(plot_type, model_name):
-    """Generate plot file path"""
+    """Generate plot file path with optional run_id subdirectory"""
     from datetime import datetime
     date_str = datetime.now().strftime('%m%d')
     time_str = datetime.now().strftime('%H%M%S')
-    plots_dir = os.path.join('./reports', date_str, 'plots')
+    base_dir = os.path.join('./reports', date_str)
+    # 在 plots 之前插入 run_id 子目录（如已设置）
+    if CURRENT_RUN_ID:
+        base_dir = os.path.join(base_dir, CURRENT_RUN_ID)
+    plots_dir = os.path.join(base_dir, 'plots')
     os.makedirs(plots_dir, exist_ok=True)
     plots_file = os.path.join(plots_dir, f'{plot_type}_{date_str}_{time_str}_{model_name}.png')
     return plots_file
