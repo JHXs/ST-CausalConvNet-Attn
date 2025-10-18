@@ -21,7 +21,7 @@ def _make_run_id(params: dict) -> str:
             s = f"{v:.0e}" if v < 1e-2 or v >= 1 else f"{v}"
             return s.replace('+', '').replace('.', 'p')
         return str(v)
-    ordered = ['lr', 'attention_heads', 'hidden_size', 'levels', 'kernel_size', 'dropout', 'rand_seed']
+    ordered = ['attention_heads', 'lr', 'hidden_size', 'levels', 'kernel_size', 'dropout', 'rand_seed']
     parts = []
     for k in ordered:
         if k in params:
