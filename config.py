@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'ImprovedSTCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
+model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
     f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
@@ -26,7 +26,7 @@ attention_heads = 1  # 注意力头数
 use_rotary = True   # 暂时禁用位置编码以避免维度错误
 
 batch_size = 32 
-lr = 1.9e-3 # 1e-3
+lr = 1e-3 # 1e-3
 n_epochs = 2000 
 
 # 学习率调度参数
@@ -41,7 +41,7 @@ es_patience = 10  # 10个epoch没有改善就停止训练
 model_save_pth = './models/model_{}.pth'.format(model_name)
 
 # 可视化
-plt = True # [True, False]
+plt = False # [True, False]
 
 # 报告生成
 generate_report = True  # 是否生成训练验证报告

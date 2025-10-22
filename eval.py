@@ -6,6 +6,11 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+# 设置matplotlib使用非交互式后端
+import matplotlib
+matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
 from sklearn import metrics
 import models

@@ -61,14 +61,23 @@ def _append_summary(base_dir: str, row: dict):
     fieldnames = [
         'run_id', 'status', 'reason',
         'model_name', 'lr', 'attention_heads', 'hidden_size', 'levels', 'kernel_size', 'dropout', 'rand_seed',
-        'rmse', 'mae', 'r2', 'mape', 'smape', 'mase', 'coverage',
-        'elapsed_seconds', 'best_epoch', 'early_stop_epoch'
+        'rmse', 'mae', 'r2', 'mape', 'smape', 'mase', 'coverage', 'best_epoch', 'early_stop_epoch', 'elapsed_seconds'
     ]
     with open(fpath, 'a', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         if not exists:
             writer.writeheader()
-        writer.writerow({k: row.get(k, '') for k in fieldnames})
+        # Ensure percentage fields carry a trailing '%'
+        data = {k: row.get(k, '') for k in fieldnames}
+        for key in ('mape', 'smape', 'coverage'):
+            val = data.get(key, '')
+            if val == '' or val is None:
+                continue
+            # Keep KISS: append '%' without altering precision
+            sval = str(val)
+            if not sval.endswith('%'):
+                data[key] = f"{sval}%"
+        writer.writerow(data)
 
 
 def main():
@@ -192,4 +201,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -5,6 +5,11 @@ import os
 import numpy as np
 import pandas as pd
 import pickle
+
+# 设置matplotlib使用非交互式后端，避免GUI线程冲突
+import matplotlib
+matplotlib.use('Agg')  # 使用Agg后端，不显示图形界面
+
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 import torch
@@ -174,19 +179,19 @@ def create_evaluation_plots(y_true, y_pred, residuals=None, save_path=None):
     """Create comprehensive evaluation plots"""
     if residuals is None:
         residuals = y_true - y_pred
-    
+
     # Create figure with subplots
     fig = plt.figure(figsize=(20, 12))
-    
+
     _create_scatter_plot(y_true, y_pred)
     _create_time_series_plot(y_true[:200], y_pred[:200])
     _create_residual_histogram(residuals)
     _create_qq_plot(residuals)
     _create_residual_vs_predicted(y_pred, residuals)
     _create_error_over_time_plot(np.abs(residuals.flatten()))
-    
+
     plt.tight_layout()
-    
+
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f'Plots saved to {save_path}')
