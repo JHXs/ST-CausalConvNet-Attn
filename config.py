@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
+model_name = 'AdvancedSTCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
     f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
@@ -44,7 +44,10 @@ model_save_pth = './models/model_{}.pth'.format(model_name)
 plt = False # [True, False]
 
 # 报告生成
-generate_report = True  # 是否生成训练验证报告
+generate_report = False  # 是否生成训练验证报告
+
+# 数据加载方式
+data_to_gpu_memory = True  # 是否将整个数据集加载到GPU显存（避免CPU-GPU传输瓶颈）
 
 prediction_variables = 'PM25_Concentration'  # 预测变量列表
 
@@ -62,7 +65,7 @@ def print_params():
     print('kernel_size (for TCN) = {}'.format(kernel_size))
     print('dropout (for TCN) = {}'.format(dropout))
     print('in_channels (for STCN) = {}'.format(in_channels))
-    print('attention_heads (for LogLinearAttention) = {}'.format(attention_heads))
+    print('attention_heads (for *-Attention) = {}'.format(attention_heads))
     print('use_rotary (for LogLinearAttention) = {}'.format(use_rotary))
     print('batch_size = {}'.format(batch_size))
     print('lr = {}'.format(lr))

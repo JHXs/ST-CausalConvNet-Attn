@@ -66,7 +66,8 @@ def get_ids_for_tvt(hz):
     return train_ids, valid_ids, test_ids
 
 
-def load_data(f_x, f_y, batch_size=32):
+def load_data(f_x, f_y, batch_size=32, data_to_gpu_memory=False, device='cuda'):
+    """加载数据并返回DataLoader，或直接加载到GPU显存"""
     x = load_pickle(f_x)
     y = load_pickle(f_y)
     y = np.array(y[:, np.newaxis])
@@ -89,22 +90,36 @@ def load_data(f_x, f_y, batch_size=32):
     print('x_shape: {}  y_shape: {}\nx_train_shape: {}  y_train_shape: {}  x_valid_shape: {}  y_valid_shape: {}  x_test_shape: {}  y_test_shape: {}\n'
           .format(x.shape, y.shape, x_train.shape, y_train.shape, x_valid.shape, y_valid.shape, x_test.shape, y_test.shape))
     
-    x_train_tensor = torch.FloatTensor(x_train)
-    y_train_tensor = torch.FloatTensor(y_train)
-    x_valid_tensor = torch.FloatTensor(x_valid)
-    y_valid_tensor = torch.FloatTensor(y_valid)
-    x_test_tensor = torch.FloatTensor(x_test)
-    y_test_tensor = torch.FloatTensor(y_test)
+    if data_to_gpu_memory and torch.cuda.is_available():
+        print('Loading entire dataset to GPU memory...')
+        x_train_tensor = torch.FloatTensor(x_train).to(device)
+        y_train_tensor = torch.FloatTensor(y_train).to(device)
+        x_valid_tensor = torch.FloatTensor(x_valid).to(device)
+        y_valid_tensor = torch.FloatTensor(y_valid).to(device)
+        x_test_tensor = torch.FloatTensor(x_test).to(device)
+        y_test_tensor = torch.FloatTensor(y_test).to(device)
+        
+        # 返回GPU张量和批次大小，不使用DataLoader
+        return (x_train_tensor, y_train_tensor, x_valid_tensor, y_valid_tensor, x_test_tensor, y_test_tensor, batch_size)
     
-    train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
-    valid_dataset = TensorDataset(x_valid_tensor, y_valid_tensor)
-    test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
-    
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
-    
-    return train_loader, valid_loader, test_loader
+    else:
+        x_train_tensor = torch.FloatTensor(x_train)
+        y_train_tensor = torch.FloatTensor(y_train)
+        x_valid_tensor = torch.FloatTensor(x_valid)
+        y_valid_tensor = torch.FloatTensor(y_valid)
+        x_test_tensor = torch.FloatTensor(x_test)
+        y_test_tensor = torch.FloatTensor(y_test)
+        
+        train_dataset = TensorDataset(x_train_tensor, y_train_tensor)
+        valid_dataset = TensorDataset(x_valid_tensor, y_valid_tensor)
+        test_dataset = TensorDataset(x_test_tensor, y_test_tensor)
+        
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+        
+        return train_loader, valid_loader, test_loader
+
 
 def get_param_number(net):
     total_num = sum(p.numel() for p in net.parameters())

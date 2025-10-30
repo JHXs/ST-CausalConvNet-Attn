@@ -128,9 +128,16 @@ def main():
             np.random.seed(cfg.rand_seed)
             torch.manual_seed(cfg.rand_seed)
 
-            # 加载数据
-            print('\nLoading data...\n')
-            train_loader, valid_loader, test_loader = utils.load_data(f_x=cfg.f_x, f_y=cfg.f_y, batch_size=cfg.batch_size)
+            # Load data - 根据配置选择数据加载方式
+            if cfg.data_to_gpu_memory and torch.cuda.is_available():
+                print('\nLoading data to GPU memory...\n')
+                x_train, y_train, x_valid, y_valid, x_test, y_test, batch_size = utils.load_data(
+                    f_x=cfg.f_x, f_y=cfg.f_y, batch_size=cfg.batch_size, data_to_gpu_memory=cfg.data_to_gpu_memory, device=cfg.device)
+                data_to_gpu_memory = True
+            else:
+                print('\nLoading data with DataLoader...\n')
+                train_loader, valid_loader, test_loader = utils.load_data(f_x=cfg.f_x, f_y=cfg.f_y, batch_size=cfg.batch_size)
+                data_to_gpu_memory = False
 
             # 生成模型
             if cfg.model_name == 'RNN':
@@ -168,14 +175,25 @@ def main():
             net = net.to(cfg.device)
 
             # 训练
-            t0 = time.time()
-            meta = train_mod.train(net, train_loader, valid_loader, test_loader, plot=options.get('plots', True))
-            t1 = time.time()
-
-            # 评估
-            net.load_state_dict(torch.load(cfg.model_save_pth, map_location=cfg.device))
-            metrics = eval_mod.eval(net, test_loader, plot=options.get('plots', True))
-
+            
+            if data_to_gpu_memory:
+                # Training - 根据数据加载方式选择训练函数
+                t0 = time.time()
+                print('\nStart training with GPU memory data...\n')
+                meta = train_mod.train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, batch_size, cfg.plt)
+                t1 = time.time()
+                # 评估
+                net.load_state_dict(torch.load(cfg.model_save_pth, map_location=cfg.device))
+                metrics = eval_mod.eval_gpu_memory(net, x_test, y_test, batch_size, plot=options.get('plots', True))
+            else:
+                t0 = time.time()
+                print('\nStart training with DataLoader...\n')
+                meta = train_mod.train(net, train_loader, valid_loader, test_loader, cfg.plt)
+                t1 = time.time()
+                # 评估
+                net.load_state_dict(torch.load(cfg.model_save_pth, map_location=cfg.device))
+                metrics = eval_mod.eval(net, test_loader, plot=options.get('plots', True))
+            
             row.update({
                 'status': 'ok',
                 'rmse': metrics[0],
