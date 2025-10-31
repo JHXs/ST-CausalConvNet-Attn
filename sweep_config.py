@@ -11,6 +11,8 @@ param_grid = {
     'levels': [4],
     'kernel_size': [4],
     'dropout': [0.25],
+    'num_layers': [4],
+    'batch_size': [32],
     # 'rand_seed': [314, 42],
 }
 

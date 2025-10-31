@@ -60,7 +60,7 @@ def _append_summary(base_dir: str, row: dict):
     exists = os.path.exists(fpath)
     fieldnames = [
         'run_id', 'status', 'reason',
-        'model_name', 'lr', 'attention_heads', 'hidden_size', 'levels', 'kernel_size', 'dropout', 'rand_seed',
+        'model_name', 'lr', 'attention_heads', 'batch_size', 'hidden_size', 'num_layers', 'levels', 'kernel_size', 'dropout', 'rand_seed',
         'rmse', 'mae', 'r2', 'mape', 'smape', 'mase', 'coverage', 'best_epoch', 'early_stop_epoch', 'elapsed_seconds'
     ]
     with open(fpath, 'a', newline='', encoding='utf-8') as f:
