@@ -87,7 +87,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                 print(f'epoch: {epoch}  progress: {progress * 100:.0f}%  '
                       f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
         
-        rmse_train = (total_mse_train / total_samples_train).sqrt()
+        rmse_train = torch.sqrt(total_mse_train / total_samples_train)
 
         # Validation phase
         net.eval()
@@ -115,7 +115,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                 total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
                 total_samples_valid += x_input_valid.size(0)
 
-        rmse_valid = (total_mse_valid / total_samples_valid).sqrt()
+        rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
         mae_valid  = (total_mae_valid / total_samples_valid)
 
         # Convert to CPU for storage and display
