@@ -26,9 +26,9 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     h_state = None
     
     # Initialize accumulators on device
-    rmse_valid = 0.0
-    mae_valid = 0.0
-    cnt = 0
+    total_mse_valid = torch.tensor(0.0, device=cfg.device)
+    total_mae_valid = torch.tensor(0.0, device=cfg.device)
+    total_samples_valid = 0
     
     # Lists for R2 calculation (collected at the end)
     y_valid_pred_final = []
@@ -51,22 +51,18 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
             else:
                 y_valid_pred = net(x_input_valid)
             
-            # Calculate metrics on GPU
-            mse_batch = criterion(y_valid_pred, y_true_valid)
-            rmse_batch = torch.sqrt(mse_batch)
-            mae_batch = torch.mean(torch.abs(y_valid_pred - y_true_valid))
-            
-            rmse_valid += rmse_batch
-            mae_valid += mae_batch
-            cnt += 1
-            
+            # Calculate metrics on GPU            
+            total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
+            total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
+            total_samples_valid += x_input_valid.size(0)
+
             # Collect predictions for R2 calculation
             y_valid_pred_final.append(y_valid_pred.cpu())
             y_valid_true.append(y_true_valid.cpu())
     
     # Calculate final metrics
-    rmse_valid = rmse_valid / cnt
-    mae_valid = mae_valid / cnt
+    rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
+    mae_valid  = total_mae_valid / total_samples_valid
     
     # Calculate R2 on CPU (requires sklearn)
     y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
@@ -123,9 +119,9 @@ def eval(net, test_loader, plot=False):
     h_state = None
     
     # Initialize accumulators on device
-    rmse_valid = 0.0
-    mae_valid = 0.0
-    cnt = 0
+    total_mse_valid = torch.tensor(0.0, device=cfg.device)
+    total_mae_valid = torch.tensor(0.0, device=cfg.device)
+    total_samples_valid = 0
     
     # Lists for R2 calculation (collected at the end)
     y_valid_pred_final = []
@@ -144,21 +140,17 @@ def eval(net, test_loader, plot=False):
                 y_valid_pred = net(x_input_valid)
             
             # Calculate metrics on GPU
-            mse_batch = criterion(y_valid_pred, y_true_valid)
-            rmse_batch = torch.sqrt(mse_batch)
-            mae_batch = torch.mean(torch.abs(y_valid_pred - y_true_valid))
-            
-            rmse_valid += rmse_batch
-            mae_valid += mae_batch
-            cnt += 1
+            total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
+            total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
+            total_samples_valid += x_input_valid.size(0)
             
             # Collect predictions for R2 calculation
             y_valid_pred_final.append(y_valid_pred.cpu())
             y_valid_true.append(y_true_valid.cpu())
     
     # Calculate final metrics
-    rmse_valid = rmse_valid / cnt
-    mae_valid = mae_valid / cnt
+    rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
+    mae_valid  = total_mae_valid / total_samples_valid
     
     # Calculate R2 on CPU (requires sklearn)
     y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))

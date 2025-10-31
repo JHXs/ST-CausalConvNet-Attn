@@ -51,8 +51,8 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
     for epoch in range(1, cfg.n_epochs + 1):
         # Training phase
         net.train()
-        rmse_train = 0.0
-        cnt = 0
+        total_mse_train = torch.tensor(0.0, device=cfg.device)
+        total_samples_train = 0
         
         # 手动实现批次处理，数据已在GPU上
         indices = torch.randperm(n_train)
@@ -77,24 +77,23 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
             optimizer.step()
 
             with torch.no_grad():
-                rmse_train_batch = torch.sqrt(loss)
-                rmse_train += rmse_train_batch
+                total_mse_train += (y_pred - y_true).pow(2).sum()   # 仍在 GPU
+                total_samples_train += x_input.size(0)
             
             train_losses.append(loss.item())
             
             if batch_idx % round(n_train / batch_size / 5) == 0:
                 progress = batch_idx / n_train
-                print('epoch: {}  progress: {:.0f}%  loss: {:.3f}  rmse: {:.3f}'.format(
-                    epoch, progress * 100, loss, rmse_train_batch))
-            cnt += 1
+                print(f'epoch: {epoch}  progress: {progress * 100:.0f}%  '
+                      f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
         
-        rmse_train = rmse_train / cnt
+        rmse_train = (total_mse_train / total_samples_train).sqrt()
 
         # Validation phase
         net.eval()
-        rmse_valid = 0.0
-        mae_valid = 0.0
-        cnt = 0
+        total_mse_valid = torch.tensor(0.0, device=cfg.device)
+        total_mae_valid = torch.tensor(0.0, device=cfg.device)
+        total_samples_valid = 0
         
         with torch.no_grad():
             for batch_idx in range(0, n_valid, batch_size):
@@ -112,16 +111,12 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                     y_valid_pred = net(x_input_valid)
                 
                 # Calculate metrics on GPU
-                mse_batch = criterion(y_valid_pred, y_true_valid)
-                rmse_batch = torch.sqrt(mse_batch)
-                mae_batch = torch.mean(torch.abs(y_valid_pred - y_true_valid))
-                
-                rmse_valid += rmse_batch
-                mae_valid += mae_batch
-                cnt += 1
-        
-        rmse_valid = rmse_valid / cnt
-        mae_valid = mae_valid / cnt
+                total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
+                total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
+                total_samples_valid += x_input_valid.size(0)
+
+        rmse_valid = (total_mse_valid / total_samples_valid).sqrt()
+        mae_valid  = (total_mae_valid / total_samples_valid)
 
         # Convert to CPU for storage and display
         rmse_train_cpu = rmse_train.item()
@@ -236,8 +231,8 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     for epoch in range(1, cfg.n_epochs + 1):
         # Training phase
         net.train()
-        rmse_train = 0.0
-        cnt = 0
+        total_mse_train = torch.tensor(0.0, device=cfg.device)        # 平方和
+        total_samples_train = 0      # 样本计数
         
         for batch_idx, (x_input, y_true) in enumerate(train_loader):
             x_input = x_input.to(cfg.device)
@@ -251,30 +246,29 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             else:
                 y_pred = net(x_input)
 
-            loss = criterion(y_pred, y_true)
+            loss = criterion(y_pred, y_true)    # 已经平均过的 MSE
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             with torch.no_grad():
-                rmse_train_batch = torch.sqrt(loss)
-                rmse_train += rmse_train_batch
+                total_mse_train += (y_pred - y_true).pow(2).sum()
+                total_samples_train += x_input.size(0)
             
             train_losses.append(loss.item())
             
             if batch_idx % round(len(train_loader) / 5) == 0:
                 progress = batch_idx / len(train_loader)
-                print('epoch: {}  progress: {:.0f}%  loss: {:.3f}  rmse: {:.3f}'.format(
-                    epoch, progress * 100, loss, rmse_train_batch))
-            cnt += 1
+                print(f'epoch: {epoch}  progress: {progress * 100:.0f}%  '
+                      f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
         
-        rmse_train = rmse_train / cnt
+        rmse_train = torch.sqrt(total_mse_train / total_samples_train)
 
         # Validation phase
         net.eval()
-        rmse_valid = 0.0
-        mae_valid = 0.0
-        cnt = 0
+        total_mse_valid = torch.tensor(0.0, device=cfg.device)
+        total_mae_valid = torch.tensor(0.0, device=cfg.device)
+        total_samples_valid = 0
         
         with torch.no_grad():
             for x_input_valid, y_true_valid in valid_loader:
@@ -290,16 +284,12 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
                     y_valid_pred = net(x_input_valid)
                 
                 # Calculate metrics on GPU
-                mse_batch = criterion(y_valid_pred, y_true_valid)
-                rmse_batch = torch.sqrt(mse_batch)
-                mae_batch = torch.mean(torch.abs(y_valid_pred - y_true_valid))
-                
-                rmse_valid += rmse_batch
-                mae_valid += mae_batch
-                cnt += 1
-        
-        rmse_valid = rmse_valid / cnt
-        mae_valid = mae_valid / cnt
+                total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
+                total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
+                total_samples_valid += x_input_valid.size(0)
+
+        rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
+        mae_valid  = total_mae_valid / total_samples_valid
 
         # Convert to CPU for storage and display
         rmse_train_cpu = rmse_train.item()
