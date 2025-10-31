@@ -17,6 +17,8 @@ import models
 import utils
 import config as cfg
 
+import os
+os.makedirs(os.path.dirname(cfg.model_save_pth), exist_ok=True)
 
 def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, batch_size, plot=False):
     """使用GPU内存数据的训练函数，避免DataLoader的CPU-GPU传输开销"""
