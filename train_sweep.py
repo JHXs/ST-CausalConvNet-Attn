@@ -14,6 +14,7 @@ import train as train_mod
 import eval as eval_mod
 from sweep_config import param_grid, options
 
+import stay_awake_wsl  # wsl 下运行保持 Windows 唤醒
 
 def _make_run_id(params: dict) -> str:
     def fmt(v):
