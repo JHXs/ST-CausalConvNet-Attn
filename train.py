@@ -57,6 +57,9 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
         
         # 手动实现批次处理，数据已在GPU上
         indices = torch.randperm(n_train)
+
+        # 设置目标进度百分比
+        target_percent = 0
         for batch_idx in range(0, n_train, batch_size):
             end_idx = min(batch_idx + batch_size, n_train)
             batch_indices = indices[batch_idx:end_idx]
@@ -83,10 +86,12 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
             
             train_losses.append(loss.item())
             
-            if batch_idx % round(n_train / batch_size / 5) == 0:
-                progress = batch_idx / n_train
-                print(f'epoch: {epoch}  progress: {progress * 100:.0f}%  '
+            # 每20%打印一次进度
+            current_percent = int(batch_idx / n_train * 100)
+            if current_percent >= target_percent and current_percent % 20 == 0:
+                print(f'epoch: {epoch}  progress: {current_percent}%  '
                       f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
+                target_percent += 20  # 更新到下一个20%的节点
         
         rmse_train = torch.sqrt(total_mse_train / total_samples_train)
 
