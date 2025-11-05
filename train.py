@@ -13,7 +13,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn import metrics
 import models
-import utils
+from utils import utils, report_tools
 import config as cfg
 
 import os
@@ -166,9 +166,9 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
     print(f"Training completed in {hours}h {minutes}m {seconds:.2f}s")
     
     if plot:
-        plots_file = utils.get_plot_directory('training', cfg.model_name)
-        utils.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, plots_file)
-    
+        plots_file = report_tools.get_plot_directory('training', cfg.model_name)
+        report_tools.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, plots_file)
+
     # Generate training report
     if cfg.generate_report:
         print("\nGenerating training report...")
@@ -180,7 +180,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
         valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size)
         
-        utils.generate_training_report(
+        report_tools.generate_training_report(
             cfg=cfg,
             model=net,
             train_loader=train_loader,
@@ -344,13 +344,13 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
     estimated_total_batches = len(train_loader) * cfg.n_epochs
     
     if plot:
-        plots_file = utils.get_plot_directory('training', cfg.model_name)
-        utils.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, plots_file)
+        plots_file = report_tools.get_plot_directory('training', cfg.model_name)
+        report_tools.create_training_plots(rmse_train_list, rmse_valid_list, mae_valid_list, train_losses, plots_file)
     
     # Generate training report
     if cfg.generate_report:
         print("\nGenerating training report...")
-        utils.generate_training_report(
+        report_tools.generate_training_report(
             cfg=cfg,
             model=net,
             train_loader=train_loader,

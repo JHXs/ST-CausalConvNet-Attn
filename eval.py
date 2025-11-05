@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn import metrics
 import models
-import utils
+from utils import utils, report_tools
 import config as cfg
 
 
@@ -70,7 +70,7 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     r2_valid = metrics.r2_score(y_valid_true, y_valid_pred_final)
     
     # Calculate advanced metrics
-    advanced_metrics = utils.calculate_advanced_metrics(y_valid_true, y_valid_pred_final)
+    advanced_metrics = report_tools.calculate_advanced_metrics(y_valid_true, y_valid_pred_final)
     
     print('\nTest Set Metrics:')
     print('RMSE_valid: {:.4f}  MAE_valid: {:.4f}  R2_valid: {:.4f}'.format(
@@ -80,8 +80,8 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     print('Coverage (95%): {:.2f}%\n'.format(advanced_metrics['Coverage']))
     
     if plot:
-        plots_file = utils.get_plot_directory('evaluation', cfg.model_name)
-        utils.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'], plots_file)
+        plots_file = report_tools.get_plot_directory('evaluation', cfg.model_name)
+        report_tools.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'], plots_file)
     
     # Generate evaluation report
     if cfg.generate_report:
@@ -94,7 +94,7 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
         test_dataset = torch.utils.data.TensorDataset(x_test.cpu(), y_test.cpu())
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size)
         
-        utils.generate_training_report(
+        report_tools.generate_training_report(
             cfg=cfg,
             model=None,
             train_loader=None,
@@ -158,7 +158,7 @@ def eval(net, test_loader, plot=False):
     r2_valid = metrics.r2_score(y_valid_true, y_valid_pred_final)
     
     # Calculate advanced metrics
-    advanced_metrics = utils.calculate_advanced_metrics(y_valid_true, y_valid_pred_final)
+    advanced_metrics = report_tools.calculate_advanced_metrics(y_valid_true, y_valid_pred_final)
     
     print('\nTest Set Metrics:')
     print('RMSE_valid: {:.4f}  MAE_valid: {:.4f}  R2_valid: {:.4f}'.format(
@@ -168,8 +168,8 @@ def eval(net, test_loader, plot=False):
     print('Coverage (95%): {:.2f}%\n'.format(advanced_metrics['Coverage']))
     
     if plot:
-        plots_file = utils.get_plot_directory('evaluation', cfg.model_name)
-        utils.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'], plots_file)
+        plots_file = report_tools.get_plot_directory('evaluation', cfg.model_name)
+        report_tools.create_evaluation_plots(y_valid_true, y_valid_pred_final, advanced_metrics['Residuals'], plots_file)
     
     # Generate evaluation report
     if cfg.generate_report:
@@ -178,7 +178,7 @@ def eval(net, test_loader, plot=False):
                         advanced_metrics['MAPE'], advanced_metrics['SMAPE'], 
                         advanced_metrics['MASE'], advanced_metrics['Coverage']]
         
-        utils.generate_training_report(
+        report_tools.generate_training_report(
             cfg=cfg,
             model=None,
             train_loader=None,

@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 import config as cfg
-import utils
+from utils import utils
 import models
 import train as train_mod
 import eval as eval_mod

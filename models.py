@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.nn.utils.parametrizations import weight_norm
-from attention_utils import TrueLogLinearAttention, PositionalEncoding
+from utils.attention_utils import TrueLogLinearAttention, PositionalEncoding
 
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25):

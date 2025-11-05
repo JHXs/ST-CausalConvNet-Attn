@@ -6,8 +6,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 from sklearn import preprocessing
 import time, datetime
-import utils
-
+from utils import utils
 
 def main():
     # extract station id list in Beijing
