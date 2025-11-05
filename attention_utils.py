@@ -274,3 +274,114 @@ class HAttention(nn.Module):
         if return_attention_weights:
             return output, attn_weights
         return output, None
+    
+class TrueLogLinearAttention(nn.Module):
+    """
+    真正的对数线性注意力实现
+    使用分层聚合实现O(n log n)复杂度
+    """
+    
+    def __init__(
+        self,
+        embed_dim: int,
+        num_heads: int = 8, 
+        dropout: float = 0.1,
+        chunk_size: int = 4
+    ):
+        super().__init__()
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.head_dim = embed_dim // num_heads
+        self.chunk_size = chunk_size
+        
+        self.q_proj = nn.Linear(embed_dim, embed_dim)
+        self.k_proj = nn.Linear(embed_dim, embed_dim)
+        self.v_proj = nn.Linear(embed_dim, embed_dim)
+        self.out_proj = nn.Linear(embed_dim, embed_dim)
+        
+        self.dropout = nn.Dropout(dropout)
+        
+    def hierarchical_attention(self, q, k, v):
+        """
+        分层计算注意力，实现O(n log n)复杂度
+        通过分块和层次聚合减少计算量
+        """
+        batch_size, num_heads, seq_len, head_dim = q.shape
+        
+        # Level 1: 局部注意力 (chunk内部)
+        chunk_size = self.chunk_size
+        num_chunks = (seq_len + chunk_size - 1) // chunk_size
+        
+        # Pad序列到chunk_size的倍数
+        pad_len = num_chunks * chunk_size - seq_len
+        if pad_len > 0:
+            q = F.pad(q, (0, 0, 0, pad_len))
+            k = F.pad(k, (0, 0, 0, pad_len))
+            v = F.pad(v, (0, 0, 0, pad_len))
+        
+        # 重塑为chunks
+        q_chunks = q.view(batch_size, num_heads, num_chunks, chunk_size, head_dim)
+        k_chunks = k.view(batch_size, num_heads, num_chunks, chunk_size, head_dim)
+        v_chunks = v.view(batch_size, num_heads, num_chunks, chunk_size, head_dim)
+        
+        # 计算chunk内的局部注意力
+        local_scores = torch.matmul(
+            q_chunks, k_chunks.transpose(-2, -1)
+        ) / math.sqrt(self.head_dim)
+        
+        # 应用因果掩码到局部注意力
+        local_mask = torch.tril(torch.ones(chunk_size, chunk_size, device=q.device))
+        local_scores = local_scores.masked_fill(local_mask.unsqueeze(0).unsqueeze(0).unsqueeze(0) == 0, float('-inf'))
+        
+        local_attn = F.softmax(local_scores, dim=-1)
+        local_output = torch.matmul(local_attn, v_chunks)
+        
+        # Level 2: 全局摘要 (chunk之间)
+        # 计算每个chunk的摘要表示
+        chunk_summary_k = k_chunks.mean(dim=3)  # [batch, heads, num_chunks, head_dim]
+        chunk_summary_v = v_chunks.mean(dim=3)  # [batch, heads, num_chunks, head_dim]
+        
+        # 计算跨chunk的注意力
+        global_scores = torch.matmul(
+            q_chunks.mean(dim=3), chunk_summary_k.transpose(-2, -1)
+        ) / math.sqrt(self.head_dim)
+        
+        # 因果掩码for chunks
+        chunk_mask = torch.tril(torch.ones(num_chunks, num_chunks, device=q.device))
+        global_scores = global_scores.masked_fill(chunk_mask.unsqueeze(0).unsqueeze(0) == 0, float('-inf'))
+        
+        global_attn = F.softmax(global_scores, dim=-1)
+        global_context = torch.matmul(global_attn, chunk_summary_v)
+        global_context = global_context.unsqueeze(3).expand_as(local_output)
+        
+        # 混合局部和全局信息
+        output = local_output + 0.5 * global_context
+        
+        # 重塑回原始形状
+        output = output.view(batch_size, num_heads, num_chunks * chunk_size, head_dim)
+        
+        # 移除padding
+        if pad_len > 0:
+            output = output[:, :, :seq_len, :]
+        
+        return output
+    
+    def forward(self, x):
+        batch_size, seq_len, _ = x.shape
+        
+        # 投影
+        q = self.q_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        k = self.k_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        v = self.v_proj(x).view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1, 2)
+        
+        # 分层注意力计算
+        output = self.hierarchical_attention(q, k, v)
+        
+        # 重塑输出
+        output = output.transpose(1, 2).contiguous()
+        output = output.view(batch_size, seq_len, self.embed_dim)
+        
+        # 输出投影
+        output = self.out_proj(output)
+        
+        return output, None

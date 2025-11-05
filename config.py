@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'AdvancedSTCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
+model_name = 'STCN_LLAttention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
     f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
@@ -25,9 +25,9 @@ in_channels = 18  ## 输入数据的通道数，选择的相关站点数18
 attention_heads = 1  # 注意力头数
 use_rotary = True   # 暂时禁用位置编码以避免维度错误
 
-batch_size = 32 
+batch_size = 32
 lr = 1e-3 # 1e-3
-n_epochs = 2000 
+n_epochs = 2000
 
 # 学习率调度参数
 lr_scheduler = False

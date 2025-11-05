@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.nn.utils.parametrizations import weight_norm
-from attention_utils import HAttention, PositionalEncoding
+from attention_utils import TrueLogLinearAttention, PositionalEncoding
 
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25):
@@ -477,17 +477,23 @@ class STCN_LLAttention(nn.Module):
         )
         self.tcn = TemporalConvNet(input_size, num_channels, kernel_size, dropout)
         
-        # 对数线性注意力替换简单时间注意力
+        # 对数线性注意力
         attention_embed_dim = num_channels[-1]
-        self.temporal_attention = HAttention(
+        self.temporal_attention = TrueLogLinearAttention(
             embed_dim=attention_embed_dim,
             num_heads=attention_heads,
             dropout=dropout,
-            base=base,
-            htype=0 if htype == 'weak' else 1,  # 0=WEAK, 1=STRONG
-            max_length=24  # Match the actual sequence length from TCN output
+            chunk_size=4,
         )
-        
+        # self.temporal_attention = HAttention(
+        #     embed_dim=attention_embed_dim,
+        #     num_heads=attention_heads,
+        #     dropout=dropout,
+        #     base=base,
+        #     htype=0 if htype == 'weak' else 1,  # 0=WEAK, 1=STRONG
+        #     max_length=24  # Match the actual sequence length from TCN output
+        # )
+
         # 输出层
         self.linear = nn.Linear(num_channels[-1], output_size)
         

@@ -85,8 +85,8 @@ def main():
     print('Using features:', feat_names)
     
     # 序列参数
-    x_length = 168  # time_step 24小时历史数据 
-    y_length = 24   # 预测1小时
+    x_length = 24  # time_step 24小时历史数据 
+    y_length = 1   # 预测1小时
     y_step = 1     # 预测步长
     max_start = len(df_processed) - x_length - y_length   # 最后一条样本起始索引
     

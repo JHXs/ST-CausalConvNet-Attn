@@ -14,7 +14,6 @@ import train as train_mod
 import eval as eval_mod
 from sweep_config import param_grid, options
 
-import stay_awake_wsl  # wsl 下运行保持 Windows 唤醒
 
 def _make_run_id(params: dict) -> str:
     def fmt(v):
@@ -30,7 +29,7 @@ def _make_run_id(params: dict) -> str:
     return '_'.join(parts)
 
 
-def _is_valid_combo(params: dict) -> (bool, str):
+def _is_valid_combo(params: dict) -> tuple[bool, str]:
     # MultiheadAttention 整除约束：embed_dim = hidden_size 必须能被 attention_heads 整除
     model_name = cfg.model_name
     heads = params.get('attention_heads', None)
