@@ -88,7 +88,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
             
             # 每20%打印一次进度
             current_percent = int(batch_idx / n_train * 100)
-            if current_percent >= target_percent and current_percent % 20 == 0:
+            if current_percent >= target_percent:
                 print(f'epoch: {epoch}  progress: {current_percent}%  '
                       f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
                 target_percent += 20  # 更新到下一个20%的节点
