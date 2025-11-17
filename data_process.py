@@ -2,10 +2,16 @@
 
 import numpy as np
 import pandas as pd
+import config as cfg
 from scipy import stats
 from utils import utils
 
+prediction_variables = cfg.prediction_variables
+
 def main():
+    primary_var = prediction_variables[0]  # 提取第一个变量作为预测目标
+    print(f'预测变量列表: {prediction_variables} (当前使用: {primary_var})')
+
     # extract station id list in Beijing
     df_airq = pd.read_csv('./data/microsoft_urban_air_data/airquality.csv')
     station_id_list = np.unique(df_airq['station_id'])[:36]     # first 36 stations are in Beijing
@@ -16,10 +22,10 @@ def main():
     center_station_id = 1013
     station_id_related_list = []
     df_one_station = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(center_station_id))
-    v_list_1 = list(df_one_station['PM25_Concentration'])
+    v_list_1 = list(df_one_station[primary_var])
     for station_id_other in station_id_list:
         df_one_station_other = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(station_id_other))
-        v_list_2 = list(df_one_station_other['PM25_Concentration'])
+        v_list_2 = list(df_one_station_other[primary_var])
         r, p = stats.pearsonr(v_list_1, v_list_2)  ## 计算与中心站点皮尔逊系数
         if r > r_thred:
             station_id_related_list.append(station_id_other)
@@ -42,7 +48,7 @@ def main():
         x_one = []
         for start_id in range(0, len(df_one_station)-x_length-y_length+1-y_step+1, y_length):
             x_data = np.array(df_one_station[feat_names].iloc[start_id: start_id+x_length])
-            y_list = np.array(df_one_station['PM25_Concentration'].iloc[start_id+x_length+y_step-1: start_id+x_length+y_length+y_step-1])
+            y_list = np.array(df_one_station[primary_var].iloc[start_id+x_length+y_step-1: start_id+x_length+y_length+y_step-1])
             if np.isnan(x_data).any() or np.isnan(y_list).any():
                 continue
             x_one.append(x_data)

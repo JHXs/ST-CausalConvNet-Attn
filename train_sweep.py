@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 import config as cfg
-from utils import utils
+from utils import utils, stay_awake_wsl
 import models
 import train as train_mod
 import eval as eval_mod
@@ -85,6 +85,7 @@ def main():
 
     # 固定模型名为当前 config
     model_name = cfg.model_name
+    prediction_variables = cfg.prediction_variables
 
     for params in _product(param_grid):
         valid, reason = _is_valid_combo(params)
@@ -95,6 +96,7 @@ def main():
             'status': 'pending',
             'reason': '',
             'model_name': model_name,
+            'prediction_variables': prediction_variables,
             **{k: params.get(k) for k in param_grid.keys()},
             'elapsed_seconds': '',
             'best_epoch': '',
