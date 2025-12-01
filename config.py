@@ -19,10 +19,11 @@ num_layers = 4 # 4
 levels = 4 # 4
 kernel_size = 4 # 4
 dropout = 0.25 # 0.25
+
 in_channels = 12  ## 输入数据的通道数，选择的相关站点数18
 
 # Log-linear attention 特定参数
-attention_heads = 1  # 注意力头数
+attention_heads = 8  # 注意力头数 必须 hidden_size % attention_heads == 0
 use_rotary = True   # 暂时禁用位置编码以避免维度错误
 
 batch_size = 32
