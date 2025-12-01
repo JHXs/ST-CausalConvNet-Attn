@@ -3,12 +3,12 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'ImprovedSTCN_Attention'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
+model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
-    f_x = './data/xy/x_1013_3d_mean.pkl'  # 3D data for sequential models
+    f_x = './data/xy/x_9022_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
-    f_x = './data/xy/x_1013.pkl'  # 4D data for STCN models
-f_y = './data/xy/y_1013.pkl'
+    f_x = './data/xy/x_9022.pkl'  # 4D data for STCN models
+f_y = './data/xy/y_9022.pkl'
 
 import torch
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -19,7 +19,7 @@ num_layers = 4 # 4
 levels = 4 # 4
 kernel_size = 4 # 4
 dropout = 0.25 # 0.25
-in_channels = 10  ## 输入数据的通道数，选择的相关站点数18
+in_channels = 12  ## 输入数据的通道数，选择的相关站点数18
 
 # Log-linear attention 特定参数
 attention_heads = 1  # 注意力头数
@@ -49,7 +49,7 @@ generate_report = False  # 是否生成训练验证报告
 # 数据加载方式
 data_to_gpu_memory = True  # 是否将整个数据集加载到GPU显存（避免CPU-GPU传输瓶颈）
 
-prediction_variables = ['SO2_Concentration']  # 预测变量列表
+prediction_variables = ['PM25_Concentration']  # 预测变量列表
 
 def print_params():
     print('\n------ Parameters ------')

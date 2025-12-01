@@ -13,18 +13,20 @@ def main():
     print(f'预测变量列表: {prediction_variables} (当前使用: {primary_var})')
 
     # extract station id list in Beijing
-    df_airq = pd.read_csv('./data/microsoft_urban_air_data/airquality.csv')
-    station_id_list = np.unique(df_airq['station_id'])[:36]     # first 36 stations are in Beijing
+    # df_airq = pd.read_csv('./data/microsoft_urban_air_data/airquality.csv')
+    # station_id_list = np.unique(df_airq['station_id'])[:36]     # first 36 stations are in Beijing
+    station_id_list = np.arange(9017, 9047).tolist() + [9058]
+    station_id_list = np.array(station_id_list)
     print(station_id_list)
     
     # Calculate the influence degree (defined as the Pearson correlation coefficient) between the center station and other stations
     r_thred = 0.85
-    center_station_id = 1013
+    center_station_id = 9022 # 1013
     station_id_related_list = []
-    df_one_station = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(center_station_id))
+    df_one_station = pd.read_csv('./data/stations_data_Guangzhou/df_station_{}.csv'.format(center_station_id))
     v_list_1 = list(df_one_station[primary_var])
     for station_id_other in station_id_list:
-        df_one_station_other = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(station_id_other))
+        df_one_station_other = pd.read_csv('./data/stations_data_Guangzhou/df_station_{}.csv'.format(station_id_other))
         v_list_2 = list(df_one_station_other[primary_var])
         r, p = stats.pearsonr(v_list_1, v_list_2)  ## 计算与中心站点皮尔逊系数
         if r > r_thred:
@@ -44,7 +46,7 @@ def main():
     x = []
     y = []
     for station_id in station_id_related_list:
-        df_one_station = pd.read_csv('./data/stations_data/df_station_{}.csv'.format(station_id))
+        df_one_station = pd.read_csv('./data/stations_data_Guangzhou/df_station_{}.csv'.format(station_id))
         x_one = []
         for start_id in range(0, len(df_one_station)-x_length-y_length+1-y_step+1, y_length):
             x_data = np.array(df_one_station[feat_names].iloc[start_id: start_id+x_length])
