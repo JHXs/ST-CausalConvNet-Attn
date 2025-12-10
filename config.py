@@ -3,8 +3,8 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
-if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention']:
+model_name = 'BiLSTM_CNN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
+if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'HybridLSTM_GRU', 'BiLSTM_CNN']:
     f_x = './data/xy/x_9022_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
     f_x = './data/xy/x_9022.pkl'  # 4D data for STCN models
@@ -15,7 +15,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = 12
 hidden_size = 32 # 32
 output_size = 1
-num_layers = 4 # 4
+num_layers = 2 # 4
 levels = 4 # 4
 kernel_size = 4 # 4
 dropout = 0.25 # 0.25

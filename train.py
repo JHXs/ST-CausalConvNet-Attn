@@ -15,6 +15,7 @@ from sklearn import metrics
 import models
 from utils import utils, report_tools
 import config as cfg
+import test_models
 
 import os
 os.makedirs(os.path.dirname(cfg.model_save_pth), exist_ok=True)
@@ -78,6 +79,8 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
             loss = criterion(y_pred, y_true)
             optimizer.zero_grad()
             loss.backward()
+            # 关键修复：添加梯度裁剪，防止深层RNN/Hybrid模型梯度爆炸
+            torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
             optimizer.step()
 
             with torch.no_grad():
@@ -255,6 +258,8 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             loss = criterion(y_pred, y_true)    # 已经平均过的 MSE
             optimizer.zero_grad()
             loss.backward()
+            # 关键修复：添加梯度裁剪，防止深层RNN/Hybrid模型梯度爆炸
+            torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
             optimizer.step()
 
             with torch.no_grad():
@@ -399,7 +404,7 @@ def main():
     # Generate model
     net = None
     if cfg.model_name == 'RNN':
-        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size)
     elif cfg.model_name == 'GRU':
         net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'LSTM':
@@ -427,6 +432,10 @@ def main():
         net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                      num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                      attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
+    elif cfg.model_name == 'HybridLSTM_GRU':
+        net = test_models.HybridLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'BiLSTM_CNN':
+        net = test_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
     net = net.to(cfg.device)
     # sys.exit(0)

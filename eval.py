@@ -16,6 +16,7 @@ from sklearn import metrics
 import models
 from utils import utils, report_tools
 import config as cfg
+import test_models
 
 
 def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
@@ -226,24 +227,19 @@ def main():
     elif cfg.model_name == 'TCN_Attention':
         net = models.TCN_Attention(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN':
-        net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
-                          num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+        net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN_Attention':
-        net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
-                                             num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
-                                             attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary)
+        net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary)
     elif cfg.model_name == 'ImprovedSTCN_Attention':
-        net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
-                                             num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
-                                             attention_heads=cfg.attention_heads)
+        net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'AdvancedSTCN_Attention':
-        net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
-                                             num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
-                                             attention_heads=cfg.attention_heads)
+        net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'STCN_LLAttention':
-        net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
-                                     num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
-                                     attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
+        net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
+    elif cfg.model_name == 'HybridLSTM_GRU':
+        net = test_models.HybridLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'BiLSTM_CNN':
+        net = test_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 
     # Load model parameters

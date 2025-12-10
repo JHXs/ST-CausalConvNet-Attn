@@ -17,7 +17,7 @@ class SimpleRNN(nn.Module):
         self.rnn = nn.RNN(
             input_size=input_size,
             hidden_size=hidden_size,
-            nonlinearity='relu',    # 'tanh' or 'relu'
+            nonlinearity='tanh',    # 'tanh' or 'relu'
             num_layers=num_layers,
             dropout=dropout,
             batch_first=True
@@ -32,7 +32,7 @@ class SimpleRNN(nn.Module):
     def init_hidden(self, batch_size, device=None):
         if device is None:
             device = next(self.parameters()).device
-        return torch.randn(self.num_layers, batch_size, self.hidden_size, device=device)
+        return torch.zeros(self.num_layers, batch_size, self.hidden_size, device=device)
 
 
 class SimpleGRU(nn.Module):
@@ -57,7 +57,7 @@ class SimpleGRU(nn.Module):
     def init_hidden(self, batch_size, device=None):
         if device is None:
             device = next(self.parameters()).device
-        return torch.randn(self.num_layers, batch_size, self.hidden_size, device=device)
+        return torch.zeros(self.num_layers, batch_size, self.hidden_size, device=device)
 
 
 class SimpleLSTM(nn.Module):
