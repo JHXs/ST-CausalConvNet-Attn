@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-import torch.optim as optim
 
 # 设置matplotlib使用非交互式后端
 import matplotlib
@@ -236,10 +235,12 @@ def main():
         net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'STCN_LLAttention':
         net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
-    elif cfg.model_name == 'HybridLSTM_GRU':
-        net = test_models.HybridLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'LSTM_GRU':
+        net = test_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
     elif cfg.model_name == 'BiLSTM_CNN':
         net = test_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
+    elif cfg.model_name == 'LSTM_CNN':
+        net = test_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 
     # Load model parameters

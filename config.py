@@ -3,8 +3,8 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'BiLSTM_CNN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention']
-if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'HybridLSTM_GRU', 'BiLSTM_CNN']:
+model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'LSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
+if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'LSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']:
     f_x = './data/xy/x_9022_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
     f_x = './data/xy/x_9022.pkl'  # 4D data for STCN models
@@ -15,7 +15,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = 12
 hidden_size = 32 # 32
 output_size = 1
-num_layers = 2 # 4
+num_layers = 4 # 4
 levels = 4 # 4
 kernel_size = 4 # 4
 dropout = 0.25 # 0.25
@@ -29,8 +29,9 @@ use_rotary = True   # 暂时禁用位置编码以避免维度错误
 batch_size = 32
 lr = 1e-3 # 1e-3
 n_epochs = 2000
+weight_decay = 1e-5 # 1e-5  # L2正则化系数
 
-# 学习率调度参数
+# 基于指标的衰减学习率调度参数
 lr_scheduler = False
 lr_patience = 5  # 5个epoch没有改善就降低学习率
 lr_factor = 0.5  # 学习率衰减因子0.2-0.5

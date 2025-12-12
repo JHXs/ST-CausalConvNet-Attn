@@ -29,7 +29,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
     rmse_valid_list = []
     mae_valid_list = []
     train_losses = []
-    optimizer = optim.Adam(net.parameters(), lr=cfg.lr)
+    optimizer = optim.AdamW(net.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     criterion = nn.MSELoss().to(cfg.device)
     h_state = None
     
@@ -432,10 +432,12 @@ def main():
         net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                      num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                      attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
-    elif cfg.model_name == 'HybridLSTM_GRU':
-        net = test_models.HybridLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'LSTM_GRU':
+        net = test_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
     elif cfg.model_name == 'BiLSTM_CNN':
         net = test_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
+    elif cfg.model_name == 'LSTM_CNN':
+        net = test_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
     net = net.to(cfg.device)
     # sys.exit(0)

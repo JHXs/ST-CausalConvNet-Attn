@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class HybridLSTM_GRU(nn.Module):
+class LSTM_GRU(nn.Module):
     # 构造函数
-    def __init__(self, input_size, hidden_size_lstm=64, hidden_size_gru=32, output_size=1, num_layers_lstm=1, num_layers_gru=1, dropout=0.25):
+    def __init__(self, input_size, hidden_size_lstm=64, hidden_size_gru=32, output_size=1, num_layers_lstm=2, num_layers_gru=2, dropout=0.25):
         """
         初始化混合模型
 
@@ -15,7 +15,7 @@ class HybridLSTM_GRU(nn.Module):
         :param num_layers_lstm: LSTM 的层数 (通常为 1)
         :param num_layers_gru: GRU 的层数 (通常为 1)
         """
-        super(HybridLSTM_GRU, self).__init__()
+        super(LSTM_GRU, self).__init__()
 
         # --- 1. LSTM 层 (64 单元) ---
         # input_size: 特征数
@@ -26,7 +26,7 @@ class HybridLSTM_GRU(nn.Module):
             hidden_size=hidden_size_lstm,
             num_layers=num_layers_lstm,
             batch_first=True,
-            dropout=dropout if num_layers_lstm > 1 else 0  # 仅在多层时使用 dropout
+            # dropout=dropout if num_layers_lstm > 1 else 0  # 仅在多层时使用 dropout
         )
 
         # --- 2. GRU 层 (32 单元) ---
@@ -37,7 +37,7 @@ class HybridLSTM_GRU(nn.Module):
             hidden_size=hidden_size_gru, # 32
             num_layers=num_layers_gru,
             batch_first=True,
-            dropout=dropout if num_layers_gru > 1 else 0
+            # dropout=dropout if num_layers_gru > 1 else 0
         )
 
         # --- 3. 全连接输出层 ---
@@ -86,10 +86,10 @@ class BiLSTM_CNN(nn.Module):
         self.lstm = nn.LSTM(
             input_size=input_size,
             hidden_size=64,
-            num_layers=2,
+            num_layers=4,
             bidirectional=True,
             batch_first=True, # 输入格式为 (batch, seq, feature)
-            dropout=0.25 # 多层LSTM通常建议加一点dropout
+            # dropout=0.25 # 多层LSTM通常建议加一点dropout
         )
         
         # 2. 1D CNN 层 (32 units/filters)
@@ -130,4 +130,58 @@ class BiLSTM_CNN(nn.Module):
         # --- Dense Layer ---
         out = self.fc(out)         # shape: (batch, num_classes)
         
+        return out
+
+
+class LSTM_CNN(nn.Module):
+    def __init__(self, input_size, output_size=1, kernel_size=3):
+        """
+        LSTM with 1D Convolutional Network (CNN)
+        Architecture:
+        1. LSTM layer (64 units)
+        2. 1D CNN layer (32 units)
+        3. Final dense output layer
+        """
+        super(LSTM_CNN, self).__init__()
+        
+        # 1. LSTM Layer (64 units)
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=64,
+            num_layers=4,
+            batch_first=True
+            # dropout=0.25
+        )
+        
+        # 2. 1D CNN Layer (32 units)
+        # Input channels = LSTM hidden size = 64
+        self.cnn = nn.Conv1d(
+            in_channels=64,
+            out_channels=32,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2
+        )
+        
+        # 3. Dense Output Layer
+        self.fc = nn.Linear(32, output_size)
+
+    def forward(self, x):
+        # x shape: (batch_size, seq_len, input_size)
+        
+        # LSTM
+        # out: (batch_size, seq_len, 64)
+        out, _ = self.lstm(x)
+        
+        # Permute for CNN: (batch, channels, length)
+        out = out.permute(0, 2, 1)
+        
+        # CNN
+        out = self.cnn(out)
+        out = F.relu(out)
+        
+        # Global Max Pooling
+        out = F.max_pool1d(out, out.size(2)).squeeze(2)
+        
+        # Output
+        out = self.fc(out)
         return out
