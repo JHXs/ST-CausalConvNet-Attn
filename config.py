@@ -3,8 +3,8 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'LSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
-if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'LSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']:
+model_name = 'BiLSTM_GRU'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
+if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']:
     f_x = './data/xy/x_9022_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
     f_x = './data/xy/x_9022.pkl'  # 4D data for STCN models

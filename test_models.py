@@ -2,6 +2,43 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+class BiLSTM(nn.Module):
+
+    def __init__(self, input_size, hidden_size=64, output_size=1, num_layers=2, dropout=0.25):
+        """
+        Bidirectional LSTM
+        Architecture:
+        1. 2 Bidirectional LSTM layers (64 units each)
+        2. Final dense output layer
+        """
+        super(BiLSTM, self).__init__()
+
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            bidirectional=True
+            # dropout=dropout if num_layers > 1 else 0
+        )
+
+        # Output layer input size = hidden_size * 2
+        self.fc = nn.Linear(hidden_size * 2, output_size)
+
+    def forward(self, x):
+        # x: (batch, seq, feature)
+
+        # BiLSTM
+        # out: (batch, seq, hidden * 2)
+        out, _ = self.lstm(x)
+
+        # Global Max Pooling (to capture features from both directions effectively)
+        out = out.permute(0, 2, 1) # (batch, hidden*2, seq)
+        out = F.max_pool1d(out, out.size(2)).squeeze(2) # (batch, hidden*2)
+
+        output = self.fc(out)
+        return output
+
 class LSTM_GRU(nn.Module):
     # 构造函数
     def __init__(self, input_size, hidden_size_lstm=64, hidden_size_gru=32, output_size=1, num_layers_lstm=2, num_layers_gru=2, dropout=0.25):
@@ -70,6 +107,64 @@ class LSTM_GRU(nn.Module):
 
         return output
 
+class BiLSTM_GRU(nn.Module):
+    def __init__(self, input_size, hidden_size_lstm=64, hidden_size_gru=32, output_size=1, num_layers_lstm=2, num_layers_gru=1, dropout=0.25):
+        """
+        BiLSTM with GRU
+        Architecture:
+        1. 2 Bidirectional LSTM layers (64 units each)
+        2. 1 GRU layer (32 units)
+        3. Final dense output layer
+        """
+        super(BiLSTM_GRU, self).__init__()
+
+        # 1. BiLSTM Layer
+        # input_size: feature dim
+        # hidden_size_lstm: 64
+        # num_layers_lstm: 2
+        # bidirectional=True -> output dim = 64 * 2 = 128
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size_lstm,
+            num_layers=num_layers_lstm,
+            batch_first=True,
+            bidirectional=True
+            # dropout=dropout if num_layers_lstm > 1 else 0
+        )
+
+        # 2. GRU Layer
+        # input_size: previous layer output size = 128
+        # hidden_size_gru: 32
+        # num_layers_gru: 1
+        self.gru = nn.GRU(
+            input_size=hidden_size_lstm * 2,
+            hidden_size=hidden_size_gru,
+            num_layers=num_layers_gru,
+            batch_first=True
+            # dropout=dropout if num_layers_gru > 1 else 0
+        )
+
+        # 3. Dense Output Layer
+        self.fc = nn.Linear(hidden_size_gru, output_size)
+
+    def forward(self, x):
+        # x: (batch, seq, feature)
+
+        # BiLSTM
+        # out_lstm: (batch, seq, hidden_lstm * 2)
+        out_lstm, _ = self.lstm(x)
+
+        # GRU
+        # out_gru: (batch, seq, hidden_gru)
+        out_gru, _ = self.gru(out_lstm)
+
+        # Extract last time step output
+        out_final = out_gru[:, -1, :]
+
+        # Output
+        output = self.fc(out_final)
+
+        return output
 
 class BiLSTM_CNN(nn.Module):
     def __init__(self, input_size, num_classes, kernel_size=3):
@@ -185,3 +280,4 @@ class LSTM_CNN(nn.Module):
         # Output
         out = self.fc(out)
         return out
+
