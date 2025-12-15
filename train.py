@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
 
 # 设置matplotlib使用非交互式后端
 import matplotlib
@@ -59,42 +60,39 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
         # 手动实现批次处理，数据已在GPU上
         indices = torch.randperm(n_train)
 
-        # 设置目标进度百分比
-        target_percent = 0
-        for batch_idx in range(0, n_train, batch_size):
-            end_idx = min(batch_idx + batch_size, n_train)
-            batch_indices = indices[batch_idx:end_idx]
-            
-            x_input = x_train[batch_indices]
-            y_true = y_train[batch_indices]
+        # 使用tqdm显示训练进度
+        with tqdm(total=n_train, desc=f"Epoch {epoch} Training", unit="sample", leave=False) as pbar:
+            for batch_idx in range(0, n_train, batch_size):
+                end_idx = min(batch_idx + batch_size, n_train)
+                batch_indices = indices[batch_idx:end_idx]
+                
+                x_input = x_train[batch_indices]
+                y_true = y_train[batch_indices]
 
-            if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
-                actual_batch_size = x_input.shape[0]
-                h_state = net.init_hidden(actual_batch_size, cfg.device)
-                y_pred, _h_state = net(x_input, h_state)
-                h_state = _h_state.data
-            else:
-                y_pred = net(x_input)
+                if cfg.model_name == 'RNN' or cfg.model_name == 'GRU':
+                    actual_batch_size = x_input.shape[0]
+                    h_state = net.init_hidden(actual_batch_size, cfg.device)
+                    y_pred, _h_state = net(x_input, h_state)
+                    h_state = _h_state.data
+                else:
+                    y_pred = net(x_input)
 
-            loss = criterion(y_pred, y_true)
-            optimizer.zero_grad()
-            loss.backward()
-            # 关键修复：添加梯度裁剪，防止深层RNN/Hybrid模型梯度爆炸
-            torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
-            optimizer.step()
+                loss = criterion(y_pred, y_true)
+                optimizer.zero_grad()
+                loss.backward()
+                # 关键修复：添加梯度裁剪，防止深层RNN/Hybrid模型梯度爆炸
+                torch.nn.utils.clip_grad_norm_(net.parameters(), max_norm=5.0)
+                optimizer.step()
 
-            with torch.no_grad():
-                total_mse_train += (y_pred - y_true).pow(2).sum()   # 仍在 GPU
-                total_samples_train += x_input.size(0)
-            
-            train_losses.append(loss.item())
-            
-            # 每20%打印一次进度
-            current_percent = int(batch_idx / n_train * 100)
-            if current_percent >= target_percent:
-                print(f'epoch: {epoch}  progress: {current_percent}%  '
-                      f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
-                target_percent += 20  # 更新到下一个20%的节点
+                with torch.no_grad():
+                    total_mse_train += (y_pred - y_true).pow(2).sum()   # 仍在 GPU
+                    total_samples_train += x_input.size(0)
+                
+                train_losses.append(loss.item())
+                
+                # 更新进度条
+                pbar.update(len(batch_indices))
+                pbar.set_postfix(loss=f"{loss.item():.3f}", rmse=f"{loss.sqrt().item():.3f}")
         
         rmse_train = torch.sqrt(total_mse_train / total_samples_train)
 
@@ -243,7 +241,8 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
         total_mse_train = torch.tensor(0.0, device=cfg.device)        # 平方和
         total_samples_train = 0      # 样本计数
         
-        for batch_idx, (x_input, y_true) in enumerate(train_loader):
+        pbar = tqdm(train_loader, desc=f"Epoch {epoch} Training", leave=False)
+        for batch_idx, (x_input, y_true) in enumerate(pbar):
             x_input = x_input.to(cfg.device)
             y_true = y_true.to(cfg.device)
 
@@ -268,10 +267,8 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
             
             train_losses.append(loss.item())
             
-            if batch_idx % round(len(train_loader) / 5) == 0:
-                progress = batch_idx / len(train_loader)
-                print(f'epoch: {epoch}  progress: {progress * 100:.0f}%  '
-                      f'loss: {loss.item():.3f}  rmse: {loss.sqrt().item():.3f}')
+            # Update tqdm postfix
+            pbar.set_postfix(loss=f"{loss.item():.3f}", rmse=f"{loss.sqrt().item():.3f}")
         
         rmse_train = torch.sqrt(total_mse_train / total_samples_train)
 
