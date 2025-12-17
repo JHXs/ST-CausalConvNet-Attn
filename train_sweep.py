@@ -10,6 +10,7 @@ import torch
 import config as cfg
 from utils import utils, stay_awake_wsl
 import models
+import baseline_models
 import train as train_mod
 import eval as eval_mod
 from sweep_config import param_grid, options
@@ -171,6 +172,16 @@ def main():
                 net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                              num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                              attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
+            elif cfg.model_name == 'BiLSTM':
+                net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=cfg.output_size)
+            elif cfg.model_name == 'LSTM_GRU':
+                net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+            elif cfg.model_name == 'BiLSTM_GRU':
+                net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+            elif cfg.model_name == 'BiLSTM_CNN':
+                net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
+            elif cfg.model_name == 'LSTM_CNN':
+                net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)            
             else:
                 raise ValueError(f"Unsupported model_name: {cfg.model_name}")
 
