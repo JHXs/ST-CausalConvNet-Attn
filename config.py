@@ -3,7 +3,7 @@
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'BiLSTM_GRU'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
+model_name = 'STCN_PatchTST'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
 if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']:
     f_x = './data/xy/x_9022_3d_mean.pkl'  # 3D data for sequential models
 else:  # STCN use 4D data
@@ -12,6 +12,7 @@ f_y = './data/xy/y_9022.pkl'
 
 import torch
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+seq_len = 24
 input_size = 12
 hidden_size = 32 # 32
 output_size = 1
@@ -27,7 +28,7 @@ attention_heads = 8  # 注意力头数 必须 hidden_size % attention_heads == 0
 use_rotary = True   # 暂时禁用位置编码以避免维度错误
 
 batch_size = 32
-lr = 1e-3 # 1e-3
+lr = 1e-3 # 1e-3, Restored
 n_epochs = 2000
 weight_decay = 1e-5 # 1e-5  # L2正则化系数
 
@@ -39,7 +40,7 @@ min_lr = 1e-5   # 最小学习率
 
 # 早停参数
 early_stopping = True
-es_patience = 10  # 10个epoch没有改善就停止训练
+es_patience = 20  # increased patience
 model_save_pth = './models/model_{}.pth'.format(model_name)
 
 # 可视化
@@ -51,7 +52,7 @@ generate_report = False  # 是否生成训练验证报告
 # 数据加载方式
 data_to_gpu_memory = True  # 是否将整个数据集加载到GPU显存（避免CPU-GPU传输瓶颈）
 
-prediction_variables = ['PM25_Concentration']  # 预测变量列表
+prediction_variables = ['O3_Concentration']  # 预测变量列表
 
 def print_params():
     print('\n------ Parameters ------')

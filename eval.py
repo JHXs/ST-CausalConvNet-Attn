@@ -245,6 +245,9 @@ def main():
         net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
     elif cfg.model_name == 'LSTM_CNN':
         net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
+    elif cfg.model_name == 'STCN_PatchTST':
+        net = models.STCN_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                                    seq_len=cfg.seq_len, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 
     # Load model parameters

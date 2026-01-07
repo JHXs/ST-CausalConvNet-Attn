@@ -21,7 +21,7 @@ def main():
     
     # Calculate the influence degree (defined as the Pearson correlation coefficient) between the center station and other stations
     r_thred = 0.85
-    center_station_id = 9022 # 1013
+    center_station_id = 9018 # 1013
     station_id_related_list = []
     df_one_station = pd.read_csv('./data/stations_data_Guangzhou/df_station_{}.csv'.format(center_station_id))
     v_list_1 = list(df_one_station[primary_var])

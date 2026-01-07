@@ -140,4 +140,4 @@ test/
 reports/
 log-linear-attention/
 .spec-workflow
-data/stations_data_Guangzhou
+# data/stations_data_Guangzhou
