@@ -21,6 +21,16 @@ import baseline_models
 import os
 os.makedirs(os.path.dirname(cfg.model_save_pth), exist_ok=True)
 
+
+def configure_runtime_backend():
+    """配置运行后端，优先保证训练可用性。"""
+    # torch 在 ROCm 下复用 `cuda` 设备字符串，且 cudnn 后端对应 MIOpen。
+    is_rocm = torch.version.hip is not None
+    if cfg.device == 'cuda' and is_rocm and getattr(cfg, 'disable_miopen', False):
+        torch.backends.cudnn.enabled = False
+        print('[Runtime] ROCm detected. MIOpen disabled (torch.backends.cudnn.enabled=False).')
+
+
 def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, batch_size, plot=False):
     """使用GPU内存数据的训练函数，避免DataLoader的CPU-GPU传输开销"""
     # 记录训练开始时间
@@ -94,7 +104,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                 pbar.update(len(batch_indices))
                 pbar.set_postfix(loss=f"{loss.item():.3f}", rmse=f"{loss.sqrt().item():.3f}")
         
-        rmse_train = torch.sqrt(total_mse_train / total_samples_train)
+        rmse_train = torch.sqrt(total_mse_train / (total_samples_train * cfg.output_size))
 
         # Validation phase
         net.eval()
@@ -122,8 +132,8 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                 total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
                 total_samples_valid += x_input_valid.size(0)
 
-        rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
-        mae_valid  = (total_mae_valid / total_samples_valid)
+        rmse_valid = torch.sqrt(total_mse_valid / (total_samples_valid * cfg.output_size))
+        mae_valid  = (total_mae_valid / (total_samples_valid * cfg.output_size))
 
         # Convert to CPU for storage and display
         rmse_train_cpu = rmse_train.item()
@@ -386,6 +396,7 @@ def main():
     cfg.print_params()
     np.random.seed(cfg.rand_seed)
     torch.manual_seed(cfg.rand_seed)
+    configure_runtime_backend()
 
     # Load data - 根据配置选择数据加载方式
     if cfg.data_to_gpu_memory and torch.cuda.is_available():
@@ -401,7 +412,7 @@ def main():
     # Generate model
     net = None
     if cfg.model_name == 'RNN':
-        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size)
+        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'GRU':
         net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'LSTM':
@@ -439,8 +450,8 @@ def main():
         net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
     elif cfg.model_name == 'LSTM_CNN':
         net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
-    elif cfg.model_name == 'STCN_PatchTST':
-        net = models.STCN_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+    elif cfg.model_name == 'ST_PatchTST':
+        net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                   seq_len=cfg.seq_len, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
     net = net.to(cfg.device)

@@ -18,6 +18,14 @@ import config as cfg
 import baseline_models
 
 
+def configure_runtime_backend():
+    """配置运行后端，优先保证评估可用性。"""
+    is_rocm = torch.version.hip is not None
+    if cfg.device == 'cuda' and is_rocm and getattr(cfg, 'disable_miopen', False):
+        torch.backends.cudnn.enabled = False
+        print('[Runtime] ROCm detected. MIOpen disabled (torch.backends.cudnn.enabled=False).')
+
+
 def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     """使用GPU内存数据的评估函数，避免DataLoader的CPU-GPU传输开销"""
     print('\nStart evaluating with GPU memory data...\n')
@@ -61,8 +69,8 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
             y_valid_true.append(y_true_valid.cpu())
     
     # Calculate final metrics
-    rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
-    mae_valid  = total_mae_valid / total_samples_valid
+    rmse_valid = torch.sqrt(total_mse_valid / (total_samples_valid * cfg.output_size))
+    mae_valid  = total_mae_valid / (total_samples_valid * cfg.output_size)
     
     # Calculate R2 on CPU (requires sklearn)
     y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
@@ -149,8 +157,8 @@ def eval(net, test_loader, plot=False):
             y_valid_true.append(y_true_valid.cpu())
     
     # Calculate final metrics
-    rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
-    mae_valid  = total_mae_valid / total_samples_valid
+    rmse_valid = torch.sqrt(total_mse_valid / (total_samples_valid * cfg.output_size))
+    mae_valid  = total_mae_valid / (total_samples_valid * cfg.output_size)
     
     # Calculate R2 on CPU (requires sklearn)
     y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
@@ -201,6 +209,7 @@ def main():
     cfg.print_params()
     np.random.seed(cfg.rand_seed)
     torch.manual_seed(cfg.rand_seed)
+    configure_runtime_backend()
 
     # Load data - 根据配置选择数据加载方式
     if cfg.data_to_gpu_memory and torch.cuda.is_available():
@@ -245,8 +254,8 @@ def main():
         net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
     elif cfg.model_name == 'LSTM_CNN':
         net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
-    elif cfg.model_name == 'STCN_PatchTST':
-        net = models.STCN_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+    elif cfg.model_name == 'ST_PatchTST':
+        net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                     seq_len=cfg.seq_len, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 

@@ -51,14 +51,27 @@ ST-CausalConvNet-Attention 的架构包括三部分：（1）多个监测站时�
 
 ## 使用介绍
 
+#### 环境
+
+激活conda 虚拟环境
+
+```bash
+/opt/miniforge/condabin/conda activate aqi-pre
+```
+
 #### 配置
 
 所有模型参数都可以在 `config.py` 中设置，例如学习率、批量大小、层数、内核大小、注意力头数、早停等。
 
+修改回望窗口与预测步长需要
+- 修改 `config.py` 中的 `seq_len` 以及 `output_size` 
+- 修改数据处理脚本 `data_process.py` 的 `x_length` `y_length`，并重新运行生成新的数据
+- 修改 `utils/utils.py` 的 `days_in_months` 以扣除滑动窗口消失的样本数量
+
 #### 数据处理
 
 ```python
-python data_process_me.py
+python data_process.py
 ```
 
 程序对原始数据集进行处理，并将其保存为 `Xy` 文件夹中的pkl文件，以供后续的模型训练和验证。

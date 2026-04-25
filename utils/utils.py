@@ -34,7 +34,7 @@ def get_ids_for_tvt(hz):
     valid_ids = []
     test_ids = []
     if hz == 0:
-        days_in_months = [31, 30, 31, 31, 30, 31, 30, 31, 31, 28, 31, 30-1]  # May to April
+        days_in_months = [31, 30, 31, 31, 30, 31, 30, 31, 31, 28, 31, 30-7-1]  # May to April
     else:
         days_in_months = [
             31, 29, 30, 30, 31, 30, 31, 31, 30, 31, 30, 31,  # 2020
@@ -62,7 +62,8 @@ def load_data(f_x, f_y, batch_size=32, data_to_gpu_memory=False, device='cuda'):
     """加载数据并返回DataLoader，或直接加载到GPU显存"""
     x = load_pickle(f_x)
     y = load_pickle(f_y)
-    y = np.array(y[:, np.newaxis])
+    if y.ndim == 1:
+        y = np.array(y[:, np.newaxis])
     if len(x.shape) == 3:
         ss = preprocessing.StandardScaler()
         for i in range(x.shape[-1]):

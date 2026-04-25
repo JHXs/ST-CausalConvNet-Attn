@@ -1,50 +1,53 @@
 # coding=utf-8
+import torch
 
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = 'STCN_PatchTST'  # ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'STCN', 'STCN_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
-if model_name in ['RNN', 'GRU', 'LSTM', 'TCN', 'TCN_Attention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']:
-    f_x = './data/xy/x_9022_3d_mean.pkl'  # 3D data for sequential models
+model_name = "RNN"  # ['RNN', "LSTM", "GRU", 'TCN', 'TCN_Attention', 'STCN', 'ST_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
+if model_name in ["RNN", "LSTM", "GRU", "TCN", "TCN_Attention", "BiLSTM", "LSTM_GRU", "BiLSTM_GRU", "BiLSTM_CNN", "LSTM_CNN"]:
+    f_x = "./data/xy/x_1013_3d_mean.pkl"  # 3D data for sequential models
 else:  # STCN use 4D data
-    f_x = './data/xy/x_9022.pkl'  # 4D data for STCN models
-f_y = './data/xy/y_9022.pkl'
+    f_x = "./data/xy/x_1013.pkl"  # 4D data for STCN models
+f_y = "./data/xy/y_1013.pkl"
 
-import torch
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-seq_len = 24
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+# 在 ROCm 环境中禁用 MIOpen（torch.backends.cudnn），避免 HIPRTC 编译失败
+disable_miopen = False
+seq_len = 24*7  # 输入序列长度（历史时间步数）
 input_size = 12
-hidden_size = 32 # 32
-output_size = 1
-num_layers = 4 # 4
-levels = 4 # 4
-kernel_size = 4 # 4
-dropout = 0.25 # 0.25
+hidden_size = 32  # 32
+output_size = 24  # 预测步长
+num_layers = 4  # 4
+levels = 4  # 4
+kernel_size = 4  # 4
+dropout = 0.25  # 0.25
 
-in_channels = 12  ## 输入数据的通道数，选择的相关站点数18
+in_channels = 18  ## 输入数据的通道数，选择的相关站点数：北京18，广州12
 
 # Log-linear attention 特定参数
 attention_heads = 8  # 注意力头数 必须 hidden_size % attention_heads == 0
-use_rotary = True   # 暂时禁用位置编码以避免维度错误
+use_rotary = True  # 暂时禁用位置编码以避免维度错误
 
 batch_size = 32
-lr = 1e-3 # 1e-3, Restored
-n_epochs = 2000
-weight_decay = 1e-5 # 1e-5  # L2正则化系数
+lr = 1e-3  # 1e-3
+n_epochs = 50
+weight_decay = 1e-5  # 1e-5  # L2正则化系数
 
 # 基于指标的衰减学习率调度参数
 lr_scheduler = False
 lr_patience = 5  # 5个epoch没有改善就降低学习率
 lr_factor = 0.5  # 学习率衰减因子0.2-0.5
-min_lr = 1e-5   # 最小学习率
+min_lr = 1e-5  # 最小学习率
 
 # 早停参数
-early_stopping = True
-es_patience = 20  # increased patience
-model_save_pth = './models/model_{}.pth'.format(model_name)
+early_stopping = False
+es_patience = 20  # 早停次数
+model_save_pth = "./models/model_{}.pth".format(model_name)
 
 # 可视化
-plt = False # [True, False]
+plt = False  # [True, False]
 
 # 报告生成
 generate_report = False  # 是否生成训练验证报告
@@ -52,26 +55,28 @@ generate_report = False  # 是否生成训练验证报告
 # 数据加载方式
 data_to_gpu_memory = True  # 是否将整个数据集加载到GPU显存（避免CPU-GPU传输瓶颈）
 
-prediction_variables = ['O3_Concentration']  # 预测变量列表
+prediction_variables = ["PM25_Concentration"]  # 预测变量列表 PM25_Concentration SO2_Concentration
+
 
 def print_params():
-    print('\n------ Parameters ------')
-    print('rand_seed = {}'.format(rand_seed))
-    print('f_x = {}'.format(f_x))
-    print('f_y = {}'.format(f_y))
-    print('device = {}'.format(device))
-    print('input_size = {}'.format(input_size))
-    print('hidden_size = {}'.format(hidden_size))
-    print('num_layers = {}'.format(num_layers))
-    print('output_size = {}'.format(output_size))
-    print('levels (for TCN) = {}'.format(levels))
-    print('kernel_size (for TCN) = {}'.format(kernel_size))
-    print('dropout (for TCN) = {}'.format(dropout))
-    print('in_channels (for STCN) = {}'.format(in_channels))
-    print('attention_heads (for *-Attention) = {}'.format(attention_heads))
-    print('use_rotary (for LogLinearAttention) = {}'.format(use_rotary))
-    print('batch_size = {}'.format(batch_size))
-    print('lr = {}'.format(lr))
-    print('n_epochs = {}'.format(n_epochs))
-    print('model_save_pth = {}'.format(model_save_pth))
-    print('------------------------\n')
+    print("\n------ Parameters ------")
+    print("rand_seed = {}".format(rand_seed))
+    print("f_x = {}".format(f_x))
+    print("f_y = {}".format(f_y))
+    print("device = {}".format(device))
+    print("disable_miopen = {}".format(disable_miopen))
+    print("input_size = {}".format(input_size))
+    print("hidden_size = {}".format(hidden_size))
+    print("num_layers = {}".format(num_layers))
+    print("output_size = {}".format(output_size))
+    print("levels (for TCN) = {}".format(levels))
+    print("kernel_size (for TCN) = {}".format(kernel_size))
+    print("dropout (for TCN) = {}".format(dropout))
+    print("in_channels (for STCN) = {}".format(in_channels))
+    print("attention_heads (for *-Attention) = {}".format(attention_heads))
+    print("use_rotary (for LogLinearAttention) = {}".format(use_rotary))
+    print("batch_size = {}".format(batch_size))
+    print("lr = {}".format(lr))
+    print("n_epochs = {}".format(n_epochs))
+    print("model_save_pth = {}".format(model_save_pth))
+    print("------------------------\n")

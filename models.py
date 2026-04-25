@@ -14,7 +14,7 @@ except ImportError:
     PatchTST = None
 
 class SimpleRNN(nn.Module):
-    def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25):
+    def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25): # 默认 dropout=0.25
         super(SimpleRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -559,13 +559,13 @@ class STCN_LLAttention(nn.Module):
         return pred
     
 
-class STCN_PatchTST(nn.Module):
+class ST_PatchTST(nn.Module):
     """
     STCN fused with tsai's PatchTST for temporal prediction.
     Uses 2D Conv for spatial feature fusion, followed by PatchTST.
     """
     def __init__(self, input_size, in_channels, output_size, seq_len, dropout=0.1):
-        super(STCN_PatchTST, self).__init__()
+        super(ST_PatchTST, self).__init__()
         
         # Spatial Fusion (Same as STCN)
         self.conv = nn.Sequential(
@@ -592,12 +592,12 @@ class STCN_PatchTST(nn.Module):
                               pred_dim=output_size, 
                               patch_len=8,
                               stride=1,
-                              d_model=128,  # Proven best capacity
-                              d_ff=512,     # 4x hidden
-                              n_heads=4,    # head_dim = 32
-                              n_layers=4,   # Increased depth to match STCN
-                              revin=False,
-                              dropout=0.1)  # Increased dropout for regularization
+                              d_model=64,   # Reduced capacity for small dataset
+                              d_ff=256,     # 4x hidden
+                              n_heads=4,    # head_dim = 16
+                              n_layers=3,   # Reduced depth
+                              revin=False,   # Enable RevIN for distribution shift
+                              dropout=0.4)  # Increased dropout for regularization
         
         # Projection head: Revert to Linear
         self.projection = nn.Linear(input_size * output_size, output_size)
