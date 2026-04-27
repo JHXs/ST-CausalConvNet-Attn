@@ -4,27 +4,27 @@ import torch
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = "RNN"  # ['RNN', "LSTM", "GRU", 'TCN', 'TCN_Attention', 'STCN', 'ST_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
+model_name = "ST_PatchTST"  # ['RNN', "LSTM", "GRU", 'TCN', 'TCN_Attention', 'STCN', 'ST_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
 if model_name in ["RNN", "LSTM", "GRU", "TCN", "TCN_Attention", "BiLSTM", "LSTM_GRU", "BiLSTM_GRU", "BiLSTM_CNN", "LSTM_CNN"]:
-    f_x = "./data/xy/x_1013_3d_mean.pkl"  # 3D data for sequential models
+    f_x = "./data/xy/x_9022_3d_mean.pkl"  # 3D data for sequential models
 else:  # STCN use 4D data
-    f_x = "./data/xy/x_1013.pkl"  # 4D data for STCN models
-f_y = "./data/xy/y_1013.pkl"
+    f_x = "./data/xy/x_9022.pkl"  # 4D data for STCN models
+f_y = "./data/xy/y_9022.pkl"
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 # 在 ROCm 环境中禁用 MIOpen（torch.backends.cudnn），避免 HIPRTC 编译失败
-disable_miopen = False
-seq_len = 24*7  # 输入序列长度（历史时间步数）
+disable_miopen = True
+seq_len = 24*14  # 输入序列长度（历史时间步数）
 input_size = 12
 hidden_size = 32  # 32
-output_size = 24  # 预测步长
+output_size = 48  # 预测步长
 num_layers = 4  # 4
 levels = 4  # 4
 kernel_size = 4  # 4
 dropout = 0.25  # 0.25
 
-in_channels = 18  ## 输入数据的通道数，选择的相关站点数：北京18，广州12
+in_channels = 12  ## for STCN 输入数据的通道数，选择的相关站点数：北京18，广州12
 
 # Log-linear attention 特定参数
 attention_heads = 8  # 注意力头数 必须 hidden_size % attention_heads == 0
@@ -56,7 +56,6 @@ generate_report = False  # 是否生成训练验证报告
 data_to_gpu_memory = True  # 是否将整个数据集加载到GPU显存（避免CPU-GPU传输瓶颈）
 
 prediction_variables = ["PM25_Concentration"]  # 预测变量列表 PM25_Concentration SO2_Concentration
-
 
 def print_params():
     print("\n------ Parameters ------")

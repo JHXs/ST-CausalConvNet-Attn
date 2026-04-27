@@ -9,28 +9,30 @@ from utils import utils
 
 prediction_variables = cfg.prediction_variables
 
+DATA_DIR = 'stations_data_Guangzhou'
+
 def main():
     primary_var = prediction_variables[0]  # 提取第一个变量作为预测目标
     print(f"预测变量列表: {prediction_variables} (当前使用: {primary_var})")
 
     # extract station id list in Beijing
     df_airq = pd.read_csv("./data/microsoft_urban_air_data/airquality.csv")
-    station_id_list = np.unique(df_airq["station_id"])[:36]  # first 36 stations are in Beijing
-    # station_id_list = np.arange(9017, 9047).tolist() + [9058]
-    # station_id_list = np.array(station_id_list)
-    # print(station_id_list)
+    # station_id_list = np.unique(df_airq["station_id"])[:36]  # first 36 stations are in Beijing
+    station_id_list = np.arange(9017, 9047).tolist() + [9058]
+    station_id_list = np.array(station_id_list)
+    print(station_id_list)
 
     # Calculate the influence degree (defined as the Pearson correlation coefficient) between the center station and other stations
     r_thred = 0.85
-    center_station_id = 1013  # 9022
+    center_station_id = 9022  # 9022 1013
     station_id_related_list = []
     df_one_station = pd.read_csv(
-        "./data/stations_data/df_station_{}.csv".format(center_station_id)
+        f"./data/{DATA_DIR}/df_station_{center_station_id}.csv"
     )
     v_list_1 = list(df_one_station[primary_var])
     for station_id_other in station_id_list:
         df_one_station_other = pd.read_csv(
-            "./data/stations_data/df_station_{}.csv".format(station_id_other)
+            f"./data/{DATA_DIR}/df_station_{station_id_other}.csv"
         )
         v_list_2 = list(df_one_station_other[primary_var])
         r, p = stats.pearsonr(v_list_1, v_list_2)  ## 计算与中心站点皮尔逊系数
@@ -68,24 +70,16 @@ def main():
     y = []
     for station_id in station_id_related_list:
         df_one_station = pd.read_csv(
-            "./data/stations_data/df_station_{}.csv".format(station_id)
+            f"./data/{DATA_DIR}/df_station_{station_id}.csv"
         )
         x_one = []
         # Use y_step (1) as stride to maximize data samples (Sliding Window)
-        for start_id in range(
-            0, len(df_one_station) - x_length - y_length + 1 - y_step + 1, y_step
-        ):
+        for start_id in range(0, len(df_one_station) - x_length - y_length + 1 - y_step + 1, y_step):
             x_data = np.array(
                 df_one_station[feat_names].iloc[start_id : start_id + x_length]
             )
             y_list = np.array(
-                df_one_station[primary_var].iloc[
-                    start_id + x_length + y_step - 1 : start_id
-                    + x_length
-                    + y_length
-                    + y_step
-                    - 1
-                ]
+                df_one_station[primary_var].iloc[start_id + x_length + y_step - 1 : start_id + x_length + y_length + y_step - 1]
             )
             if np.isnan(x_data).any() or np.isnan(y_list).any():
                 continue
