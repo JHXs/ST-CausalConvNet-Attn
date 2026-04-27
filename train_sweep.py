@@ -22,7 +22,11 @@ def _make_run_id(params: dict) -> str:
             s = f"{v:.0e}" if v < 1e-2 or v >= 1 else f"{v}"
             return s.replace('+', '').replace('.', 'p')
         return str(v)
-    ordered = ['attention_heads', 'lr', 'hidden_size', 'levels', 'kernel_size', 'dropout', 'rand_seed']
+    ordered = [
+        'attention_heads', 'lr', 'hidden_size', 'levels', 'kernel_size', 'dropout',
+        'patchtst_patch_len', 'patchtst_stride', 'patchtst_d_model',
+        'patchtst_n_heads', 'patchtst_n_layers', 'rand_seed'
+    ]
     parts = []
     for k in ordered:
         if k in params:
@@ -39,6 +43,10 @@ def _is_valid_combo(params: dict) -> tuple[bool, str]:
         if model_name in ['ImprovedSTCN_Attention', 'AdvancedSTCN_Attention']:
             if hidden % heads != 0:
                 return False, f"hidden_size {hidden} % attention_heads {heads} != 0"
+    patchtst_d_model = params.get('patchtst_d_model', cfg.patchtst_d_model)
+    patchtst_n_heads = params.get('patchtst_n_heads', cfg.patchtst_n_heads)
+    if model_name == 'PatchTST' and patchtst_d_model % patchtst_n_heads != 0:
+        return False, f"patchtst_d_model {patchtst_d_model} % patchtst_n_heads {patchtst_n_heads} != 0"
     return True, ''
 
 
@@ -61,7 +69,8 @@ def _append_summary(base_dir: str, row: dict):
     exists = os.path.exists(fpath)
     fieldnames = [
         'run_id', 'status', 'reason',
-        'model_name', 'prediction_variables', 'lr', 'attention_heads', 'batch_size', 'hidden_size', 'num_layers', 'levels', 'kernel_size', 'dropout', 'rand_seed',
+        'model_name', 'prediction_variables', 'lr', 'attention_heads', 'batch_size', 'hidden_size', 'num_layers', 'levels', 'kernel_size', 'dropout',
+        'patchtst_patch_len', 'patchtst_stride', 'patchtst_d_model', 'patchtst_d_ff', 'patchtst_n_heads', 'patchtst_n_layers', 'patchtst_revin', 'rand_seed',
         'rmse', 'mae', 'r2', 'mape', 'smape', 'mase', 'coverage', 'best_epoch', 'early_stop_epoch', 'elapsed_seconds'
     ]
     with open(fpath, 'a', newline='', encoding='utf-8') as f:
@@ -121,6 +130,13 @@ def main():
             cfg.kernel_size = params.get('kernel_size', cfg.kernel_size)
             cfg.dropout = params.get('dropout', cfg.dropout)
             cfg.rand_seed = params.get('rand_seed', cfg.rand_seed)
+            cfg.patchtst_patch_len = params.get('patchtst_patch_len', cfg.patchtst_patch_len)
+            cfg.patchtst_stride = params.get('patchtst_stride', cfg.patchtst_stride)
+            cfg.patchtst_d_model = params.get('patchtst_d_model', cfg.patchtst_d_model)
+            cfg.patchtst_d_ff = params.get('patchtst_d_ff', cfg.patchtst_d_ff)
+            cfg.patchtst_n_heads = params.get('patchtst_n_heads', cfg.patchtst_n_heads)
+            cfg.patchtst_n_layers = params.get('patchtst_n_layers', cfg.patchtst_n_layers)
+            cfg.patchtst_revin = params.get('patchtst_revin', cfg.patchtst_revin)
             # 更新保存路径
             cfg.model_save_pth = f"./models/model_{cfg.model_name}_{run_id}.pth"
 
@@ -153,6 +169,12 @@ def main():
                 net = models.TCN(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
             elif cfg.model_name == 'TCN_Attention':
                 net = models.TCN_Attention(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+            elif cfg.model_name == 'PatchTST':
+                net = models.PatchTST(input_size=cfg.input_size, output_size=cfg.output_size, seq_len=cfg.seq_len,
+                                      patch_len=cfg.patchtst_patch_len, stride=cfg.patchtst_stride,
+                                      d_model=cfg.patchtst_d_model, d_ff=cfg.patchtst_d_ff,
+                                      n_heads=cfg.patchtst_n_heads, n_layers=cfg.patchtst_n_layers,
+                                      revin=cfg.patchtst_revin, dropout=cfg.dropout)
             elif cfg.model_name == 'STCN':
                 net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                                   num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
@@ -182,6 +204,9 @@ def main():
                 net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
             elif cfg.model_name == 'LSTM_CNN':
                 net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)            
+            elif cfg.model_name == 'ST_PatchTST':
+                net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                                          seq_len=cfg.seq_len, dropout=cfg.dropout)
             else:
                 raise ValueError(f"Unsupported model_name: {cfg.model_name}")
 

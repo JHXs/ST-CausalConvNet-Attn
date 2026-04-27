@@ -4,8 +4,8 @@ import torch
 # model hyper-parameters
 rand_seed = 314
 # Choose data file based on model type
-model_name = "ST_PatchTST"  # ['RNN', "LSTM", "GRU", 'TCN', 'TCN_Attention', 'STCN', 'ST_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
-if model_name in ["RNN", "LSTM", "GRU", "TCN", "TCN_Attention", "BiLSTM", "LSTM_GRU", "BiLSTM_GRU", "BiLSTM_CNN", "LSTM_CNN"]:
+model_name = "PatchTST"  # ['RNN', "LSTM", "GRU", 'TCN', 'TCN_Attention', 'PatchTST', 'STCN', 'ST_PatchTST', 'STCN_Attention', 'ImprovedSTCN_Attention', 'AdvancedSTCN_Attention', 'STCN_LLAttention', 'BiLSTM', 'LSTM_GRU', 'BiLSTM_GRU', 'BiLSTM_CNN', 'LSTM_CNN']
+if model_name in ["RNN", "LSTM", "GRU", "TCN", "TCN_Attention", "PatchTST", "BiLSTM", "LSTM_GRU", "BiLSTM_GRU", "BiLSTM_CNN", "LSTM_CNN"]:
     f_x = "./data/xy/x_9022_3d_mean.pkl"  # 3D data for sequential models
 else:  # STCN use 4D data
     f_x = "./data/xy/x_9022.pkl"  # 4D data for STCN models
@@ -18,13 +18,22 @@ disable_miopen = True
 seq_len = 24*14  # 输入序列长度（历史时间步数）
 input_size = 12
 hidden_size = 32  # 32
-output_size = 48  # 预测步长
+output_size = 72  # 预测步长
 num_layers = 4  # 4
 levels = 4  # 4
 kernel_size = 4  # 4
 dropout = 0.25  # 0.25
 
 in_channels = 12  ## for STCN 输入数据的通道数，选择的相关站点数：北京18，广州12
+
+# PatchTST 特定参数（仅 model_name == "PatchTST" 时使用）
+patchtst_patch_len = 16
+patchtst_stride = 8
+patchtst_d_model = 64
+patchtst_d_ff = 256
+patchtst_n_heads = 4
+patchtst_n_layers = 3
+patchtst_revin = True
 
 # Log-linear attention 特定参数
 attention_heads = 8  # 注意力头数 必须 hidden_size % attention_heads == 0
@@ -72,6 +81,13 @@ def print_params():
     print("kernel_size (for TCN) = {}".format(kernel_size))
     print("dropout (for TCN) = {}".format(dropout))
     print("in_channels (for STCN) = {}".format(in_channels))
+    print("patchtst_patch_len = {}".format(patchtst_patch_len))
+    print("patchtst_stride = {}".format(patchtst_stride))
+    print("patchtst_d_model = {}".format(patchtst_d_model))
+    print("patchtst_d_ff = {}".format(patchtst_d_ff))
+    print("patchtst_n_heads = {}".format(patchtst_n_heads))
+    print("patchtst_n_layers = {}".format(patchtst_n_layers))
+    print("patchtst_revin = {}".format(patchtst_revin))
     print("attention_heads (for *-Attention) = {}".format(attention_heads))
     print("use_rotary (for LogLinearAttention) = {}".format(use_rotary))
     print("batch_size = {}".format(batch_size))

@@ -421,6 +421,12 @@ def main():
         net = models.TCN(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'TCN_Attention':
         net = models.TCN_Attention(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+    elif cfg.model_name == 'PatchTST':
+        net = models.PatchTST(input_size=cfg.input_size, output_size=cfg.output_size, seq_len=cfg.seq_len,
+                              patch_len=cfg.patchtst_patch_len, stride=cfg.patchtst_stride,
+                              d_model=cfg.patchtst_d_model, d_ff=cfg.patchtst_d_ff,
+                              n_heads=cfg.patchtst_n_heads, n_layers=cfg.patchtst_n_layers,
+                              revin=cfg.patchtst_revin, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN':
         net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
                           num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)

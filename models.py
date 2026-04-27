@@ -7,11 +7,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 from torch.nn.utils.parametrizations import weight_norm
+from patchtst import PatchTST
 from utils.attention_utils import TrueLogLinearAttention, PositionalEncoding
-try:
-    from tsai.models.PatchTST import PatchTST
-except ImportError:
-    PatchTST = None
 
 class SimpleRNN(nn.Module):
     def __init__(self, input_size, hidden_size=32, output_size=1, num_layers=1, dropout=0.25): # 默认 dropout=0.25
@@ -557,14 +554,16 @@ class STCN_LLAttention(nn.Module):
         pred = self.linear(last_step)
         
         return pred
-    
+
 
 class ST_PatchTST(nn.Module):
     """
-    STCN fused with tsai's PatchTST for temporal prediction.
+    STCN fused with PatchTST for temporal prediction.
     Uses 2D Conv for spatial feature fusion, followed by PatchTST.
     """
-    def __init__(self, input_size, in_channels, output_size, seq_len, dropout=0.1):
+    def __init__(self, input_size, in_channels, output_size, seq_len, dropout=0.1,
+                 patch_len=8, stride=1, d_model=64, d_ff=256, n_heads=4, n_layers=3,
+                 revin=False):
         super(ST_PatchTST, self).__init__()
         
         # Spatial Fusion (Same as STCN)
@@ -577,30 +576,20 @@ class ST_PatchTST(nn.Module):
             nn.ReLU()
         )
         
-        # PatchTST
-        # c_in: input feature dimension (which is input_size in this context)
-        # c_out: output dimension (output_size)
-        # seq_len: input sequence length
-        # pred_len: prediction horizon (mapped to output_size here, assuming single step or matching output_size)
-        if PatchTST is None:
-            raise ImportError("tsai library is not installed. Please install it to use STCN_PatchTST.")
-            
-        # Balanced settings for small dataset but complex task
-        self.model = PatchTST(c_in=input_size, 
-                              c_out=output_size, 
-                              seq_len=seq_len, 
-                              pred_dim=output_size, 
-                              patch_len=8,
-                              stride=1,
-                              d_model=64,   # Reduced capacity for small dataset
-                              d_ff=256,     # 4x hidden
-                              n_heads=4,    # head_dim = 16
-                              n_layers=3,   # Reduced depth
-                              revin=False,   # Enable RevIN for distribution shift
-                              dropout=0.4)  # Increased dropout for regularization
-        
-        # Projection head: Revert to Linear
-        self.projection = nn.Linear(input_size * output_size, output_size)
+        self.model = PatchTST(
+            input_size=input_size,
+            output_size=output_size,
+            seq_len=seq_len,
+            patch_len=patch_len,
+            stride=stride,
+            d_model=d_model,
+            d_ff=d_ff,
+            n_heads=n_heads,
+            n_layers=n_layers,
+            revin=revin,
+            dropout=dropout,
+            flatten_output=True
+        )
 
     def forward(self, x):
         # x shape: [batch, in_channels (stations), seq_len, features]
@@ -608,17 +597,8 @@ class ST_PatchTST(nn.Module):
         # Spatial Fusion
         conv_out = self.conv(x).squeeze(1)  # [batch, seq_len, features]
         
-        # Prepare for PatchTST
-        # tsai PatchTST expects [batch, features, seq_len] (or [batch, c_in, seq_len])
+        # Prepare for PatchTST: [batch, features, seq_len]
         x_reshaped = conv_out.transpose(1, 2) # [batch, features, seq_len]
         
-        # Forward pass
-        output = self.model(x_reshaped)  # [batch, c_in, pred_dim]
-        
-        # Flatten and project
-        # output: [batch, 12, 1] -> flatten -> [batch, 12] -> linear -> [batch, 1]
-        flat = output.flatten(1)
-        pred = self.projection(flat)
-        
-        return pred
+        return self.model(x_reshaped)
     
