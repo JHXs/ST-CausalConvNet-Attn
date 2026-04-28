@@ -26,6 +26,74 @@ def configure_runtime_backend():
         print('[Runtime] ROCm detected. MIOpen disabled (torch.backends.cudnn.enabled=False).')
 
 
+def _calculate_single_output_metrics(y_true, y_pred):
+    """Calculate metrics for one flattened output series."""
+    rmse = np.sqrt(np.mean((y_pred - y_true) ** 2))
+    mae = np.mean(np.abs(y_pred - y_true))
+    r2 = metrics.r2_score(y_true, y_pred)
+    advanced_metrics = report_tools.calculate_advanced_metrics(y_true.reshape((-1, 1)), y_pred.reshape((-1, 1)))
+    return {
+        'RMSE': rmse,
+        'MAE': mae,
+        'R2': r2,
+        'MAPE': advanced_metrics['MAPE'],
+        'SMAPE': advanced_metrics['SMAPE'],
+        'MASE': advanced_metrics['MASE'],
+        'Coverage': advanced_metrics['Coverage'],
+    }
+
+
+def _reshape_by_prediction_variable(values):
+    """Reshape flattened model outputs to [sample, horizon, prediction_variable]."""
+    values = np.asarray(values)
+    if values.ndim == 1:
+        values = values.reshape((-1, 1))
+    elif values.ndim > 2:
+        values = values.reshape((values.shape[0], -1))
+
+    n_vars = cfg.get_num_prediction_variables() if hasattr(cfg, 'get_num_prediction_variables') else 1
+    horizon = cfg.output_size
+    expected_width = horizon * n_vars
+
+    if values.shape[1] == expected_width:
+        return values.reshape((values.shape[0], horizon, n_vars))
+    if n_vars == 1:
+        return values.reshape((values.shape[0], values.shape[1], 1))
+    raise ValueError(
+        f'Cannot reshape output with width {values.shape[1]} to '
+        f'output_size={horizon} * prediction_variables={n_vars}. '
+        'Regenerate y data with data_process.py after changing prediction_variables.'
+    )
+
+
+def _print_per_variable_metrics(y_true, y_pred):
+    """Print metrics grouped by prediction variable while keeping the existing overall metrics."""
+    y_true = _reshape_by_prediction_variable(y_true)
+    y_pred = _reshape_by_prediction_variable(y_pred)
+
+    variable_names = list(getattr(cfg, 'prediction_variables', []))
+    if len(variable_names) < y_true.shape[2]:
+        variable_names.extend([f'var_{idx + 1}' for idx in range(len(variable_names), y_true.shape[2])])
+
+    print('Per Prediction-Variable Metrics:')
+    print('{:<24} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>12}'.format(
+        'Variable', 'RMSE', 'MAE', 'R2', 'MAPE%', 'SMAPE%', 'MASE', 'Coverage%'))
+    for idx in range(y_true.shape[2]):
+        var_true = y_true[:, :, idx].reshape(-1)
+        var_pred = y_pred[:, :, idx].reshape(-1)
+        var_metrics = _calculate_single_output_metrics(var_true, var_pred)
+        print('{:<24} {:>10.4f} {:>10.4f} {:>10.4f} {:>10.4f} {:>10.4f} {:>10.4f} {:>12.2f}'.format(
+            variable_names[idx],
+            var_metrics['RMSE'],
+            var_metrics['MAE'],
+            var_metrics['R2'],
+            var_metrics['MAPE'],
+            var_metrics['SMAPE'],
+            var_metrics['MASE'],
+            var_metrics['Coverage'],
+        ))
+    print()
+
 def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     """使用GPU内存数据的评估函数，避免DataLoader的CPU-GPU传输开销"""
     print('\nStart evaluating with GPU memory data...\n')
@@ -36,7 +104,7 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     # Initialize accumulators on device
     total_mse_valid = torch.tensor(0.0, device=cfg.device)
     total_mae_valid = torch.tensor(0.0, device=cfg.device)
-    total_samples_valid = 0
+    total_values_valid = 0
     
     # Lists for R2 calculation (collected at the end)
     y_valid_pred_final = []
@@ -62,19 +130,21 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
             # Calculate metrics on GPU            
             total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
             total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
-            total_samples_valid += x_input_valid.size(0)
+            total_values_valid += y_true_valid.numel()
 
             # Collect predictions for R2 calculation
             y_valid_pred_final.append(y_valid_pred.cpu())
             y_valid_true.append(y_true_valid.cpu())
     
     # Calculate final metrics
-    rmse_valid = torch.sqrt(total_mse_valid / (total_samples_valid * cfg.output_size))
-    mae_valid  = total_mae_valid / (total_samples_valid * cfg.output_size)
+    rmse_valid = torch.sqrt(total_mse_valid / total_values_valid)
+    mae_valid  = total_mae_valid / total_values_valid
     
     # Calculate R2 on CPU (requires sklearn)
-    y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
-    y_valid_true = torch.cat(y_valid_true).numpy().reshape((-1, 1))
+    y_valid_pred_2d = torch.cat(y_valid_pred_final).numpy()
+    y_valid_true_2d = torch.cat(y_valid_true).numpy()
+    y_valid_pred_final = y_valid_pred_2d.reshape((-1, 1))
+    y_valid_true = y_valid_true_2d.reshape((-1, 1))
     r2_valid = metrics.r2_score(y_valid_true, y_valid_pred_final)
     
     # Calculate advanced metrics
@@ -86,6 +156,7 @@ def eval_gpu_memory(net, x_test, y_test, batch_size, plot=False):
     print('MAPE: {:.4f}%  SMAPE: {:.4f}%  MASE: {:.4f}'.format(
         advanced_metrics['MAPE'], advanced_metrics['SMAPE'], advanced_metrics['MASE']))
     print('Coverage (95%): {:.2f}%\n'.format(advanced_metrics['Coverage']))
+    _print_per_variable_metrics(y_valid_true_2d, y_valid_pred_2d)
     
     if plot:
         plots_file = report_tools.get_plot_directory('evaluation', cfg.model_name)
@@ -129,7 +200,7 @@ def eval(net, test_loader, plot=False):
     # Initialize accumulators on device
     total_mse_valid = torch.tensor(0.0, device=cfg.device)
     total_mae_valid = torch.tensor(0.0, device=cfg.device)
-    total_samples_valid = 0
+    total_values_valid = 0
     
     # Lists for R2 calculation (collected at the end)
     y_valid_pred_final = []
@@ -150,19 +221,21 @@ def eval(net, test_loader, plot=False):
             # Calculate metrics on GPU
             total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
             total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
-            total_samples_valid += x_input_valid.size(0)
+            total_values_valid += y_true_valid.numel()
             
             # Collect predictions for R2 calculation
             y_valid_pred_final.append(y_valid_pred.cpu())
             y_valid_true.append(y_true_valid.cpu())
     
     # Calculate final metrics
-    rmse_valid = torch.sqrt(total_mse_valid / (total_samples_valid * cfg.output_size))
-    mae_valid  = total_mae_valid / (total_samples_valid * cfg.output_size)
+    rmse_valid = torch.sqrt(total_mse_valid / total_values_valid)
+    mae_valid  = total_mae_valid / total_values_valid
     
     # Calculate R2 on CPU (requires sklearn)
-    y_valid_pred_final = torch.cat(y_valid_pred_final).numpy().reshape((-1, 1))
-    y_valid_true = torch.cat(y_valid_true).numpy().reshape((-1, 1))
+    y_valid_pred_2d = torch.cat(y_valid_pred_final).numpy()
+    y_valid_true_2d = torch.cat(y_valid_true).numpy()
+    y_valid_pred_final = y_valid_pred_2d.reshape((-1, 1))
+    y_valid_true = y_valid_true_2d.reshape((-1, 1))
     r2_valid = metrics.r2_score(y_valid_true, y_valid_pred_final)
     
     # Calculate advanced metrics
@@ -174,6 +247,7 @@ def eval(net, test_loader, plot=False):
     print('MAPE: {:.4f}%  SMAPE: {:.4f}%  MASE: {:.4f}'.format(
         advanced_metrics['MAPE'], advanced_metrics['SMAPE'], advanced_metrics['MASE']))
     print('Coverage (95%): {:.2f}%\n'.format(advanced_metrics['Coverage']))
+    _print_per_variable_metrics(y_valid_true_2d, y_valid_pred_2d)
     
     if plot:
         plots_file = report_tools.get_plot_directory('evaluation', cfg.model_name)
@@ -221,47 +295,48 @@ def main():
         print('\nLoading data with DataLoader...\n')
         train_loader, valid_loader, test_loader = utils.load_data(f_x=cfg.f_x, f_y=cfg.f_y, batch_size=cfg.batch_size)
         data_to_gpu_memory = False
+    model_output_size = cfg.get_model_output_size() if hasattr(cfg, 'get_model_output_size') else cfg.output_size
 
     # Generate model
     net = None
     if cfg.model_name == 'RNN':
-        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'GRU':
-        net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'LSTM':
-        net = models.SimpleLSTM(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleLSTM(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'TCN':
-        net = models.TCN(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+        net = models.TCN(input_size=cfg.input_size, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'TCN_Attention':
-        net = models.TCN_Attention(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+        net = models.TCN_Attention(input_size=cfg.input_size, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'PatchTST':
-        net = models.PatchTST(input_size=cfg.input_size, output_size=cfg.output_size, seq_len=cfg.seq_len,
+        net = models.PatchTST(input_size=cfg.input_size, output_size=model_output_size, seq_len=cfg.seq_len,
                               patch_len=cfg.patchtst_patch_len, stride=cfg.patchtst_stride,
                               d_model=cfg.patchtst_d_model, d_ff=cfg.patchtst_d_ff,
                               n_heads=cfg.patchtst_n_heads, n_layers=cfg.patchtst_n_layers,
                               revin=cfg.patchtst_revin, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN':
-        net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+        net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN_Attention':
-        net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary)
+        net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary)
     elif cfg.model_name == 'ImprovedSTCN_Attention':
-        net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
+        net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'AdvancedSTCN_Attention':
-        net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
+        net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'STCN_LLAttention':
-        net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
+        net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout, attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
     elif cfg.model_name == 'BiLSTM':
-        net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=cfg.output_size)
+        net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=model_output_size)
     elif cfg.model_name == 'LSTM_GRU':
-        net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+        net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=model_output_size, dropout=cfg.dropout)
     elif cfg.model_name == 'BiLSTM_GRU':
-        net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+        net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=model_output_size, dropout=cfg.dropout)
     elif cfg.model_name == 'BiLSTM_CNN':
-        net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
+        net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=model_output_size)
     elif cfg.model_name == 'LSTM_CNN':
-        net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
+        net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=model_output_size)
     elif cfg.model_name == 'ST_PatchTST':
-        net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                     seq_len=cfg.seq_len, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
 

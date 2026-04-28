@@ -64,6 +64,8 @@ def load_data(f_x, f_y, batch_size=32, data_to_gpu_memory=False, device='cuda'):
     y = load_pickle(f_y)
     if y.ndim == 1:
         y = np.array(y[:, np.newaxis])
+    elif y.ndim > 2:
+        y = y.reshape((y.shape[0], -1))
     if len(x.shape) == 3:
         ss = preprocessing.StandardScaler()
         for i in range(x.shape[-1]):

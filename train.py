@@ -65,7 +65,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
         # Training phase
         net.train()
         total_mse_train = torch.tensor(0.0, device=cfg.device)
-        total_samples_train = 0
+        total_values_train = 0
         
         # 手动实现批次处理，数据已在GPU上
         indices = torch.randperm(n_train)
@@ -96,7 +96,7 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
 
                 with torch.no_grad():
                     total_mse_train += (y_pred - y_true).pow(2).sum()   # 仍在 GPU
-                    total_samples_train += x_input.size(0)
+                    total_values_train += y_true.numel()
                 
                 train_losses.append(loss.item())
                 
@@ -104,13 +104,13 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                 pbar.update(len(batch_indices))
                 pbar.set_postfix(loss=f"{loss.item():.3f}", rmse=f"{loss.sqrt().item():.3f}")
         
-        rmse_train = torch.sqrt(total_mse_train / (total_samples_train * cfg.output_size))
+        rmse_train = torch.sqrt(total_mse_train / total_values_train)
 
         # Validation phase
         net.eval()
         total_mse_valid = torch.tensor(0.0, device=cfg.device)
         total_mae_valid = torch.tensor(0.0, device=cfg.device)
-        total_samples_valid = 0
+        total_values_valid = 0
         
         with torch.no_grad():
             for batch_idx in range(0, n_valid, batch_size):
@@ -130,10 +130,10 @@ def train_gpu_memory(net, x_train, y_train, x_valid, y_valid, x_test, y_test, ba
                 # Calculate metrics on GPU
                 total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
                 total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
-                total_samples_valid += x_input_valid.size(0)
+                total_values_valid += y_true_valid.numel()
 
-        rmse_valid = torch.sqrt(total_mse_valid / (total_samples_valid * cfg.output_size))
-        mae_valid  = (total_mae_valid / (total_samples_valid * cfg.output_size))
+        rmse_valid = torch.sqrt(total_mse_valid / total_values_valid)
+        mae_valid  = total_mae_valid / total_values_valid
 
         # Convert to CPU for storage and display
         rmse_train_cpu = rmse_train.item()
@@ -249,7 +249,7 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
         # Training phase
         net.train()
         total_mse_train = torch.tensor(0.0, device=cfg.device)        # 平方和
-        total_samples_train = 0      # 样本计数
+        total_values_train = 0       # 目标值计数
         
         pbar = tqdm(train_loader, desc=f"Epoch {epoch} Training", leave=False)
         for batch_idx, (x_input, y_true) in enumerate(pbar):
@@ -273,20 +273,20 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
 
             with torch.no_grad():
                 total_mse_train += (y_pred - y_true).pow(2).sum()
-                total_samples_train += x_input.size(0)
+                total_values_train += y_true.numel()
             
             train_losses.append(loss.item())
             
             # Update tqdm postfix
             pbar.set_postfix(loss=f"{loss.item():.3f}", rmse=f"{loss.sqrt().item():.3f}")
         
-        rmse_train = torch.sqrt(total_mse_train / total_samples_train)
+        rmse_train = torch.sqrt(total_mse_train / total_values_train)
 
         # Validation phase
         net.eval()
         total_mse_valid = torch.tensor(0.0, device=cfg.device)
         total_mae_valid = torch.tensor(0.0, device=cfg.device)
-        total_samples_valid = 0
+        total_values_valid = 0
         
         with torch.no_grad():
             for x_input_valid, y_true_valid in valid_loader:
@@ -304,10 +304,10 @@ def train(net, train_loader, valid_loader, test_loader, plot=False):
                 # Calculate metrics on GPU
                 total_mse_valid += (y_valid_pred - y_true_valid).pow(2).sum()
                 total_mae_valid += (y_valid_pred - y_true_valid).abs().sum()
-                total_samples_valid += x_input_valid.size(0)
+                total_values_valid += y_true_valid.numel()
 
-        rmse_valid = torch.sqrt(total_mse_valid / total_samples_valid)
-        mae_valid  = total_mae_valid / total_samples_valid
+        rmse_valid = torch.sqrt(total_mse_valid / total_values_valid)
+        mae_valid  = total_mae_valid / total_values_valid
 
         # Convert to CPU for storage and display
         rmse_train_cpu = rmse_train.item()
@@ -408,56 +408,57 @@ def main():
         print('\nLoading data with DataLoader...\n')
         train_loader, valid_loader, test_loader = utils.load_data(f_x=cfg.f_x, f_y=cfg.f_y, batch_size=cfg.batch_size)
         data_to_gpu_memory = False
+    model_output_size = cfg.get_model_output_size() if hasattr(cfg, 'get_model_output_size') else cfg.output_size
 
     # Generate model
     net = None
     if cfg.model_name == 'RNN':
-        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'GRU':
-        net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'LSTM':
-        net = models.SimpleLSTM(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+        net = models.SimpleLSTM(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
     elif cfg.model_name == 'TCN':
-        net = models.TCN(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+        net = models.TCN(input_size=cfg.input_size, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'TCN_Attention':
-        net = models.TCN_Attention(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+        net = models.TCN_Attention(input_size=cfg.input_size, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'PatchTST':
-        net = models.PatchTST(input_size=cfg.input_size, output_size=cfg.output_size, seq_len=cfg.seq_len,
+        net = models.PatchTST(input_size=cfg.input_size, output_size=model_output_size, seq_len=cfg.seq_len,
                               patch_len=cfg.patchtst_patch_len, stride=cfg.patchtst_stride,
                               d_model=cfg.patchtst_d_model, d_ff=cfg.patchtst_d_ff,
                               n_heads=cfg.patchtst_n_heads, n_layers=cfg.patchtst_n_layers,
                               revin=cfg.patchtst_revin, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN':
-        net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                           num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
     elif cfg.model_name == 'STCN_Attention':
-        net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                              num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                              attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary)
     elif cfg.model_name == 'ImprovedSTCN_Attention':
-        net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                              num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                              attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'AdvancedSTCN_Attention':
-        net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                              num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                              attention_heads=cfg.attention_heads)
     elif cfg.model_name == 'STCN_LLAttention':
-        net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                      num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                      attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
     elif cfg.model_name == 'BiLSTM':
-        net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=cfg.output_size)
+        net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=model_output_size)
     elif cfg.model_name == 'LSTM_GRU':
-        net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+        net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=model_output_size, dropout=cfg.dropout)
     elif cfg.model_name == 'BiLSTM_GRU':
-        net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+        net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=model_output_size, dropout=cfg.dropout)
     elif cfg.model_name == 'BiLSTM_CNN':
-        net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
+        net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=model_output_size)
     elif cfg.model_name == 'LSTM_CNN':
-        net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)
+        net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=model_output_size)
     elif cfg.model_name == 'ST_PatchTST':
-        net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+        net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                   seq_len=cfg.seq_len, dropout=cfg.dropout)
     print('\n------------ Model structure ------------\nmodel name: {}\n{}\n-----------------------------------------\n'.format(cfg.model_name, net))
     net = net.to(cfg.device)

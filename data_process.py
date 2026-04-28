@@ -12,8 +12,8 @@ prediction_variables = cfg.prediction_variables
 DATA_DIR = 'stations_data_Guangzhou'
 
 def main():
-    primary_var = prediction_variables[0]  # 提取第一个变量作为预测目标
-    print(f"预测变量列表: {prediction_variables} (当前使用: {primary_var})")
+    primary_var = prediction_variables[0]  # 使用第一个变量筛选相关站点
+    print(f"预测变量列表: {prediction_variables} (相关站点筛选使用: {primary_var})")
 
     # extract station id list in Beijing
     df_airq = pd.read_csv("./data/microsoft_urban_air_data/airquality.csv")
@@ -43,7 +43,8 @@ def main():
 
     # generate x and y
     # x_shape: [example_count, num_releated, seq_step, feat_size]
-    # y_shape: [example_count,]
+    # y_shape: [example_count, y_length] for a single target variable,
+    # or [example_count, y_length * target_count] for multiple target variables.
     print(
         "Center station: {}\nRelated stations: {}".format(
             center_station_id, station_id_related_list
@@ -78,15 +79,23 @@ def main():
             x_data = np.array(
                 df_one_station[feat_names].iloc[start_id : start_id + x_length]
             )
-            y_list = np.array(
-                df_one_station[primary_var].iloc[start_id + x_length + y_step - 1 : start_id + x_length + y_length + y_step - 1]
+            y_data = np.array(
+                df_one_station[prediction_variables].iloc[
+                    start_id + x_length + y_step - 1 : start_id + x_length + y_length + y_step - 1
+                ]
             )
-            if np.isnan(x_data).any() or np.isnan(y_list).any():
+            if len(prediction_variables) == 1:
+                y_data = y_data.reshape(-1)
+            else:
+                # Flatten as [t1_var1, t1_var2, ..., t2_var1, ...].
+                # eval.py reshapes this back to [sample, horizon, variable].
+                y_data = y_data.reshape(-1)
+            if np.isnan(x_data).any() or np.isnan(y_data).any():
                 continue
             x_one.append(x_data)
             if station_id == center_station_id:
                 # Keep full vector for multi-step prediction
-                y.append(y_list)
+                y.append(y_data)
                 # y.append(np.mean(y_list))
         if len(x_one) <= 0:
             continue

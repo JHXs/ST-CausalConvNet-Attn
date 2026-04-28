@@ -64,7 +64,15 @@ generate_report = False  # 是否生成训练验证报告
 # 数据加载方式
 data_to_gpu_memory = True  # 是否将整个数据集加载到GPU显存（避免CPU-GPU传输瓶颈）
 
-prediction_variables = ["PM25_Concentration"]  # 预测变量列表 PM25_Concentration SO2_Concentration
+prediction_variables = ["PM25_Concentration", "SO2_Concentration", "O3_Concentration"]  # 预测变量列表，例如 ["PM25_Concentration", "SO2_Concentration", "O3_Concentration"]
+
+
+def get_num_prediction_variables():
+    return max(1, len(prediction_variables))
+
+
+def get_model_output_size():
+    return output_size * get_num_prediction_variables()
 
 def print_params():
     print("\n------ Parameters ------")
@@ -93,5 +101,7 @@ def print_params():
     print("batch_size = {}".format(batch_size))
     print("lr = {}".format(lr))
     print("n_epochs = {}".format(n_epochs))
+    print("prediction_variables = {}".format(prediction_variables))
+    print("model_output_size = {}".format(get_model_output_size()))
     print("model_save_pth = {}".format(model_save_pth))
     print("------------------------\n")

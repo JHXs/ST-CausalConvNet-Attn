@@ -96,6 +96,7 @@ def main():
     # 固定模型名为当前 config
     model_name = cfg.model_name
     prediction_variables = cfg.prediction_variables
+    model_output_size = cfg.get_model_output_size() if hasattr(cfg, 'get_model_output_size') else cfg.output_size
 
     for params in _product(param_grid):
         valid, reason = _is_valid_combo(params)
@@ -106,7 +107,7 @@ def main():
             'status': 'pending',
             'reason': '',
             'model_name': model_name,
-            'prediction_variables': prediction_variables[0],
+            'prediction_variables': ','.join(prediction_variables),
             **{k: params.get(k) for k in param_grid.keys()},
             'elapsed_seconds': '',
             'best_epoch': '',
@@ -160,52 +161,52 @@ def main():
 
             # 生成模型
             if cfg.model_name == 'RNN':
-                net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+                net = models.SimpleRNN(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
             elif cfg.model_name == 'GRU':
-                net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+                net = models.SimpleGRU(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
             elif cfg.model_name == 'LSTM':
-                net = models.SimpleLSTM(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=cfg.output_size, num_layers=cfg.num_layers)
+                net = models.SimpleLSTM(input_size=cfg.input_size, hidden_size=cfg.hidden_size, output_size=model_output_size, num_layers=cfg.num_layers)
             elif cfg.model_name == 'TCN':
-                net = models.TCN(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+                net = models.TCN(input_size=cfg.input_size, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
             elif cfg.model_name == 'TCN_Attention':
-                net = models.TCN_Attention(input_size=cfg.input_size, output_size=cfg.output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
+                net = models.TCN_Attention(input_size=cfg.input_size, output_size=model_output_size, num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
             elif cfg.model_name == 'PatchTST':
-                net = models.PatchTST(input_size=cfg.input_size, output_size=cfg.output_size, seq_len=cfg.seq_len,
+                net = models.PatchTST(input_size=cfg.input_size, output_size=model_output_size, seq_len=cfg.seq_len,
                                       patch_len=cfg.patchtst_patch_len, stride=cfg.patchtst_stride,
                                       d_model=cfg.patchtst_d_model, d_ff=cfg.patchtst_d_ff,
                                       n_heads=cfg.patchtst_n_heads, n_layers=cfg.patchtst_n_layers,
                                       revin=cfg.patchtst_revin, dropout=cfg.dropout)
             elif cfg.model_name == 'STCN':
-                net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                net = models.STCN(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                   num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout)
             elif cfg.model_name == 'STCN_Attention':
-                net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                net = models.STCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                              num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                              attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary)
             elif cfg.model_name == 'ImprovedSTCN_Attention':
-                net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                net = models.ImprovedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                                      num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                                      attention_heads=cfg.attention_heads)
             elif cfg.model_name == 'AdvancedSTCN_Attention':
-                net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                net = models.AdvancedSTCN_Attention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                                      num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                                      attention_heads=cfg.attention_heads)
             elif cfg.model_name == 'STCN_LLAttention':
-                net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                net = models.STCN_LLAttention(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                              num_channels=[cfg.hidden_size]*cfg.levels, kernel_size=cfg.kernel_size, dropout=cfg.dropout,
                                              attention_heads=cfg.attention_heads, use_rotary=cfg.use_rotary, htype='weak', base=2)
             elif cfg.model_name == 'BiLSTM':
-                net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=cfg.output_size)
+                net = baseline_models.BiLSTM(input_size=cfg.input_size, output_size=model_output_size)
             elif cfg.model_name == 'LSTM_GRU':
-                net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+                net = baseline_models.LSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=model_output_size, dropout=cfg.dropout)
             elif cfg.model_name == 'BiLSTM_GRU':
-                net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=cfg.output_size, dropout=cfg.dropout)
+                net = baseline_models.BiLSTM_GRU(input_size=cfg.input_size, hidden_size_lstm=cfg.hidden_size, hidden_size_gru=cfg.hidden_size, output_size=model_output_size, dropout=cfg.dropout)
             elif cfg.model_name == 'BiLSTM_CNN':
-                net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=cfg.output_size)
+                net = baseline_models.BiLSTM_CNN(input_size=cfg.input_size, num_classes=model_output_size)
             elif cfg.model_name == 'LSTM_CNN':
-                net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=cfg.output_size)            
+                net = baseline_models.LSTM_CNN(input_size=cfg.input_size, output_size=model_output_size)            
             elif cfg.model_name == 'ST_PatchTST':
-                net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=cfg.output_size,
+                net = models.ST_PatchTST(input_size=cfg.input_size, in_channels=cfg.in_channels, output_size=model_output_size,
                                           seq_len=cfg.seq_len, dropout=cfg.dropout)
             else:
                 raise ValueError(f"Unsupported model_name: {cfg.model_name}")
